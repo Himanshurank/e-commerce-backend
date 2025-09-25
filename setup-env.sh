@@ -1,3 +1,9 @@
+#!/bin/bash
+
+# Setup environment variables for Aiven PostgreSQL
+echo "Setting up environment variables for Aiven PostgreSQL database..."
+
+cat > .env << 'EOF'
 # Server Configuration
 PORT=5000
 NODE_ENV=development
@@ -21,9 +27,9 @@ DB_LOGS_MAX_CONNECTIONS=10
 DB_LOGS_IDLE_TIMEOUT=30000
 
 # JWT Configuration
-JWT_SECRET=your-super-secret-jwt-key-at-least-32-characters
+JWT_SECRET=your-super-secret-jwt-key-e-commerce-backend-2024-development-key
 JWT_EXPIRES_IN=15m
-JWT_REFRESH_SECRET=your-refresh-secret-key
+JWT_REFRESH_SECRET=your-refresh-secret-key-e-commerce-backend-2024-refresh
 JWT_REFRESH_EXPIRES_IN=7d
 
 # Stripe Payment
@@ -57,3 +63,8 @@ REDIS_READ_CLIENT_COUNT=5
 ELASTICSEARCH_HOST=localhost:9200
 ELASTICSEARCH_USERNAME=elastic
 ELASTICSEARCH_PASSWORD=your_elasticsearch_password
+EOF
+
+echo "✅ Environment variables set up successfully!"
+echo "📝 Created .env file with Aiven PostgreSQL configuration"
+echo "🔍 You can now test the database connection with: npm run db:test"
