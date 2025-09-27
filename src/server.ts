@@ -8,6 +8,7 @@ import * as Sentry from "@sentry/node";
 import { DatabaseFactory } from "./shared/factories/databaseFactory";
 import { moduleRoutes } from "./modules";
 import { sentryApiLogger } from "./shared/middleware/sentry-logging-middleware";
+import { errorLogger } from "./shared/middleware/error-logger-middleware";
 
 // Load environment variables
 dotenv.config();
@@ -44,10 +45,11 @@ app.get("/debug-sentry", function mainHandler(req: Request, res: Response) {
 // The error handler must be registered before any other error middleware and after all controllers
 Sentry.setupExpressErrorHandler(app);
 
-// Optional fallthrough error handler
+// Our custom error logger middleware
+app.use(errorLogger);
+
+// Our custom error logger middleware
 app.use(function onError(err: Error, req: Request, res: Response, next: any) {
-  // The error id is attached to `res.sentry` to be returned
-  // and optionally displayed to the user for support.
   console.error("Unhandled error:", err);
   res.statusCode = 500;
   res.end((res as any).sentry + "\n");

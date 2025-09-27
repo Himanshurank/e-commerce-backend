@@ -46,6 +46,18 @@ export const sentryApiLogger = (
     ip: req.ip,
   });
 
+  // Log API call start
+  Sentry.logger.info(`API Call Started: ${req.method} ${req.path}`, {
+    action: "api_call_start",
+    method: req.method,
+    path: req.path,
+    url: req.url,
+    query: req.query,
+    userId: req.user?.userId,
+    userAgent: req.get("User-Agent"),
+    ip: req.ip,
+  });
+
   // Add breadcrumb for the request
   Sentry.addBreadcrumb({
     message: `API Call: ${req.method} ${req.path}`,
@@ -84,6 +96,28 @@ export const sentryApiLogger = (
     // Log API call completion
     const level =
       statusCode >= 500 ? "error" : statusCode >= 400 ? "warning" : "info";
+
+    if (statusCode >= 400) {
+      Sentry.logger.error(`API Call Failed: ${req.method} ${req.path}`, {
+        action: "api_call_error",
+        method: req.method,
+        path: req.path,
+        statusCode,
+        duration,
+        userId: req.user?.userId,
+        query: req.query,
+        body: req.body,
+      });
+    } else {
+      Sentry.logger.info(`API Call Success: ${req.method} ${req.path}`, {
+        action: "api_call_success",
+        method: req.method,
+        path: req.path,
+        statusCode,
+        duration,
+        userId: req.user?.userId,
+      });
+    }
 
     Sentry.captureMessage(
       `API ${statusCode}: ${req.method} ${req.path} (${duration}ms)`,
