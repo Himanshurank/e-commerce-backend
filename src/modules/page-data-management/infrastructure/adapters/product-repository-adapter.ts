@@ -22,39 +22,42 @@ export class ProductRepositoryAdapter implements IPageDataProductRepository {
   public async findAll(
     filters?: IProductFilters | undefined
   ): Promise<IProductWithDetails[]> {
-    // Convert page data filters to product management query options
-    const sortBy = this.mapSortBy(filters?.sortBy);
-    const queryOptions: IQueryOptions = {
-      limit: filters?.limit || 20,
-      page: Math.floor((filters?.offset || 0) / (filters?.limit || 20)) + 1,
-      sortOrder: (filters?.sortOrder || "desc").toUpperCase() as "ASC" | "DESC",
-    };
-    if (sortBy) {
-      queryOptions.sortBy = sortBy;
+    try {
+      // Use findAll method to get active products instead of findFeaturedProducts
+      const limit = filters?.limit || 8;
+      const queryOptions: IQueryOptions = {
+        limit: limit,
+        page: 1,
+        sortBy: "created_at",
+        sortOrder: "DESC",
+      };
+
+      const result = await this.productRepository.findAll(queryOptions);
+
+      // Map to page data format with additional fields
+      return result.data.map((product) => ({
+        id: product.id,
+        name: product.name,
+        slug: product.slug,
+        basePrice: product.price,
+        discountPrice: product.comparePrice,
+        currency: "USD", // Default currency since not in entity
+        images: product.images.map((img) => img.url),
+        viewCount: product.viewCount || 0,
+        salesCount: 0, // TODO: Implement sales count when needed
+        averageRating: this.calculateAverageRating(product),
+        reviewCount: this.calculateReviewCount(product),
+        isPromoted: this.checkIfPromoted(product),
+        categoryName: this.getCategoryName(product),
+        sellerName: this.getSellerName(product),
+        sellerRating: this.getSellerRating(product),
+        createdAt: product.createdAt,
+        updatedAt: product.updatedAt,
+      }));
+    } catch (error) {
+      console.error("ProductRepositoryAdapter.findAll Error:", error);
+      return [];
     }
-
-    const result = await this.productRepository.findAll(queryOptions);
-
-    // Map to page data format with additional fields
-    return result.data.map((product) => ({
-      id: product.id,
-      name: product.name,
-      slug: product.slug,
-      basePrice: product.price,
-      discountPrice: product.comparePrice,
-      currency: "USD", // Default currency since not in entity
-      images: product.images.map((img) => img.url),
-      viewCount: product.viewCount,
-      salesCount: 0, // TODO: Implement sales count when needed
-      averageRating: this.calculateAverageRating(product),
-      reviewCount: this.calculateReviewCount(product),
-      isPromoted: this.checkIfPromoted(product),
-      categoryName: this.getCategoryName(product),
-      sellerName: this.getSellerName(product),
-      sellerRating: this.getSellerRating(product),
-      createdAt: product.createdAt,
-      updatedAt: product.updatedAt,
-    }));
   }
 
   /**
@@ -68,9 +71,14 @@ export class ProductRepositoryAdapter implements IPageDataProductRepository {
         }
       | undefined
   ): Promise<number> {
-    // Use findAll to get total count (since specific count method may not exist)
-    const result = await this.productRepository.findAll({ limit: 1 });
-    return result.total;
+    try {
+      // Use findAll to get total count
+      const result = await this.productRepository.findAll({ limit: 1 });
+      return result.total;
+    } catch (error) {
+      console.error("ProductRepositoryAdapter.count Error:", error);
+      return 0;
+    }
   }
 
   /**

@@ -24,12 +24,42 @@ export class CategoryRepositoryAdapter implements IPageDataCategoryRepository {
   public async findAll(
     filters?: ICategoryFilters | undefined
   ): Promise<ICategoryWithCount[]> {
-    // For root categories (parentId is null), use findRootCategories
-    if (filters?.parentId === null) {
+    try {
+      // For root categories (parentId is null), use findRootCategories
+      if (filters?.parentId === null) {
+        const sortBy = this.mapSortBy(filters?.sortBy);
+        const queryOptions: IQueryOptions = {
+          sortOrder: (filters?.sortOrder || "asc").toUpperCase() as
+            | "ASC"
+            | "DESC",
+        };
+        if (sortBy) {
+          queryOptions.sortBy = sortBy;
+        }
+
+        const rootCategories =
+          await this.productCategoryRepository.findRootCategories(queryOptions);
+
+        // Map to page data format
+        return rootCategories.slice(0, filters?.limit || 8).map((category) => ({
+          id: category.id,
+          name: category.name,
+          slug: category.slug,
+          description: category.description,
+          image: category.imageUrl,
+          parentId: category.parentId,
+          status: category.isActive ? "ACTIVE" : "INACTIVE",
+          productCount: 0, // TODO: Implement product count when needed
+          createdAt: category.createdAt,
+          updatedAt: category.updatedAt,
+        }));
+      }
+
+      // For all categories, use findAll
       const sortBy = this.mapSortBy(filters?.sortBy);
       const queryOptions: IQueryOptions = {
         limit: filters?.limit || 50,
-        page: Math.floor((filters?.offset || 0) / (filters?.limit || 50)) + 1,
+        page: 1,
         sortOrder: (filters?.sortOrder || "asc").toUpperCase() as
           | "ASC"
           | "DESC",
@@ -38,11 +68,10 @@ export class CategoryRepositoryAdapter implements IPageDataCategoryRepository {
         queryOptions.sortBy = sortBy;
       }
 
-      const rootCategories =
-        await this.productCategoryRepository.findRootCategories(queryOptions);
+      const result = await this.productCategoryRepository.findAll(queryOptions);
 
       // Map to page data format
-      return rootCategories.map((category) => ({
+      return result.data.map((category) => ({
         id: category.id,
         name: category.name,
         slug: category.slug,
@@ -54,34 +83,10 @@ export class CategoryRepositoryAdapter implements IPageDataCategoryRepository {
         createdAt: category.createdAt,
         updatedAt: category.updatedAt,
       }));
+    } catch (error) {
+      console.error("CategoryRepositoryAdapter.findAll Error:", error);
+      return [];
     }
-
-    // For all categories, use findAll
-    const sortBy = this.mapSortBy(filters?.sortBy);
-    const queryOptions: IQueryOptions = {
-      limit: filters?.limit || 50,
-      page: Math.floor((filters?.offset || 0) / (filters?.limit || 50)) + 1,
-      sortOrder: (filters?.sortOrder || "asc").toUpperCase() as "ASC" | "DESC",
-    };
-    if (sortBy) {
-      queryOptions.sortBy = sortBy;
-    }
-
-    const result = await this.productCategoryRepository.findAll(queryOptions);
-
-    // Map to page data format
-    return result.data.map((category) => ({
-      id: category.id,
-      name: category.name,
-      slug: category.slug,
-      description: category.description,
-      image: category.imageUrl,
-      parentId: category.parentId,
-      status: category.isActive ? "ACTIVE" : "INACTIVE",
-      productCount: 0, // TODO: Implement product count when needed
-      createdAt: category.createdAt,
-      updatedAt: category.updatedAt,
-    }));
   }
 
   /**
@@ -90,9 +95,14 @@ export class CategoryRepositoryAdapter implements IPageDataCategoryRepository {
   public async count(
     filters?: { status?: "ACTIVE" | "INACTIVE" | undefined } | undefined
   ): Promise<number> {
-    // Use findAll to get total count (since count method doesn't exist)
-    const result = await this.productCategoryRepository.findAll({ limit: 1 });
-    return result.total;
+    try {
+      // Use findAll to get total count (since count method doesn't exist)
+      const result = await this.productCategoryRepository.findAll({ limit: 1 });
+      return result.total;
+    } catch (error) {
+      console.error("CategoryRepositoryAdapter.count Error:", error);
+      return 0;
+    }
   }
 
   /**
