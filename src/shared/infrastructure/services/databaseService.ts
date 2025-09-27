@@ -64,16 +64,8 @@ export class PostgreSQLDatabaseService implements DatabaseService {
     text: string,
     params?: any[]
   ): Promise<QueryResult<T>> {
-    const start = Date.now();
     try {
       const result = await this.pool.query<T>(text, params);
-      const duration = Date.now() - start;
-
-      console.log(`Query executed on ${this.connectionType}`, {
-        duration: `${duration}ms`,
-        rows: result.rowCount,
-        command: result.command,
-      });
 
       return result;
     } catch (error) {
