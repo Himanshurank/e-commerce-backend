@@ -731,6 +731,67 @@ Authorization: Bearer jwt_token_here
 }
 ```
 
+---
+
+## Page Data Management
+
+### Get Homepage Data
+
+**GET** `/api/v1/pages/homepage`
+
+**Query Parameters:**
+
+- `category_limit`: Number of categories to return (default: 8, max: 20)
+- `featured_product_limit`: Number of featured products to return (default: 8, max: 50)
+- `include_metadata`: Include metadata (default: true)
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "categories": [
+      {
+        "id": "uuid",
+        "name": "Electronics",
+        "slug": "electronics",
+        "description": "Electronic products and gadgets",
+        "image": "electronics.jpg",
+        "productCount": 150
+      }
+    ],
+    "products": {
+      "featured": [
+        {
+          "id": "uuid",
+          "name": "iPhone 15 Pro",
+          "slug": "iphone-15-pro",
+          "basePrice": 999.99,
+          "discountPrice": 899.99,
+          "currency": "USD",
+          "images": ["iphone1.jpg", "iphone2.jpg"],
+          "categoryName": "Smartphones",
+          "sellerName": "Apple Store",
+          "sellerRating": 4.8,
+          "viewCount": 1250,
+          "salesCount": 45,
+          "rating": 4.9,
+          "reviewCount": 128
+        }
+      ]
+    },
+    "metadata": {
+      "totalCategories": 25,
+      "totalProducts": 1500,
+      "lastUpdated": "2024-01-01T12:00:00.000Z",
+      "cacheExpiry": "2024-01-01T12:15:00.000Z"
+    }
+  },
+  "message": "Homepage data retrieved successfully"
+}
+```
+
 ## Error Response Format
 
 All endpoints return errors in this format:
