@@ -24,6 +24,7 @@
   "license": "MIT",
   "dependencies": {
     "@prisma/client": "^6.16.2",
+    "@sentry/node": "^10.15.0",
     "@types/pg": "^8.15.5",
     "bcrypt": "^5.1.1",
     "bcryptjs": "^2.4.3",
