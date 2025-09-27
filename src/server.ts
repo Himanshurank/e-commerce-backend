@@ -2,8 +2,7 @@ import express, { Request, Response } from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import { DatabaseFactory } from "./shared/factories/databaseFactory";
-import { healthRouter } from "./modules/routes/health";
-import { testDataRouter } from "./modules/routes/test-data";
+import { moduleRoutes } from "./modules";
 
 // Load environment variables
 dotenv.config();
@@ -16,33 +15,11 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Routes
-app.use("/health", healthRouter);
-app.use("/api/test", testDataRouter);
+
+// Clean Architecture Module Routes
+app.use(moduleRoutes);
 
 // Basic route
-app.get("/", (req: Request, res: Response) => {
-  res.json({
-    message: "E-Commerce Backend API",
-    version: "1.0.0",
-    status: "Server is running",
-    architecture: "Clean Architecture with TypeScript",
-  });
-});
-
-// API routes will be added here
-app.get("/api", (req: Request, res: Response) => {
-  res.json({
-    message: "E-Commerce API v1",
-    endpoints: {
-      health: "/health",
-      database: "/health/database",
-      system: "/health/system",
-      testProducts: "/api/test/products",
-      testCategories: "/api/test/categories",
-      testSearch: "/api/test/search?q=<query>",
-    },
-  });
-});
 
 const PORT = process.env["PORT"] || 5000;
 

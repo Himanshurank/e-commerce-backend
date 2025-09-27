@@ -9,6 +9,8 @@
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "clean": "rimraf dist",
     "db:test": "ts-node -e \"import('./src/clean-architecture/shared/factories/databaseFactory').then(({DatabaseFactory}) => DatabaseFactory.testConnections().then(console.log))\"",
+    "db:init": "ts-node src/scripts/init-database-schema.ts",
+    "db:seed": "ts-node src/scripts/seed-sample-data.ts",
     "db:drop": "ts-node src/scripts/drop-all-tables.ts"
   },
   "keywords": [
@@ -23,27 +25,33 @@
   "dependencies": {
     "@prisma/client": "^6.16.2",
     "@types/pg": "^8.15.5",
+    "bcrypt": "^5.1.1",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.6.1",
     "express": "^4.18.2",
     "express-validator": "^7.0.1",
+    "joi": "^17.13.3",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^7.5.0",
     "multer": "^1.4.5-lts.1",
     "nodemailer": "^6.9.4",
     "pg": "^8.16.3",
     "prisma": "^6.16.2",
-    "stripe": "^13.5.0"
+    "stripe": "^13.5.0",
+    "uuid": "^10.0.0"
   },
   "devDependencies": {
+    "@types/bcrypt": "^5.0.2",
     "@types/bcryptjs": "^2.4.2",
     "@types/cors": "^2.8.13",
     "@types/express": "^4.17.17",
+    "@types/joi": "^17.2.3",
     "@types/jsonwebtoken": "^9.0.2",
     "@types/multer": "^1.4.7",
     "@types/node": "^20.5.0",
     "@types/nodemailer": "^6.4.9",
+    "@types/uuid": "^10.0.0",
     "rimraf": "^5.0.1",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.2.2"

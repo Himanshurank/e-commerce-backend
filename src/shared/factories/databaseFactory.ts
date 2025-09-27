@@ -18,6 +18,11 @@ export class DatabaseFactory {
     return this.instances.get(connectionType)!;
   }
 
+  // Create database service instance (for dependency injection)
+  static create(): DatabaseService {
+    return this.getMainDatabase();
+  }
+
   // Get main database connection
   static getMainDatabase(): DatabaseService {
     return this.getDatabase(EConnectionTypes.main);

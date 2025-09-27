@@ -199,6 +199,6 @@ export abstract class BaseRepository implements BaseRepo {
       whereParams
     );
 
-    return parseInt(result.rows[0].count, 10);
+    return parseInt(result.rows[0]?.count || "0", 10);
   }
 }

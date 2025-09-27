@@ -315,7 +315,7 @@ const schema = {
 ### Clean Architecture Module Structure
 
 ```
-src/clean-architecture/
+src/
 ├── shared/                          # Shared components across modules
 │   ├── factories/
 │   │   └── revBaseFactory.ts       # Base factory for dependency injection
@@ -508,7 +508,7 @@ export class EntityQueryBuilder extends BaseOpenSearchQueryBuilder {
 ### Step 1: Create Module Structure
 
 ```bash
-mkdir -p src/clean-architecture/modules/your-module/{application/{useCases,constants,interfaces},domain/{entities,interfaces,services},infrastructure/repositories,presentation/{controllers,interfaces,routes,validation},repositories,services,mappers}
+mkdir -p src/modules/your-module/{application/{useCases,constants,interfaces},domain/{entities,interfaces,services},infrastructure/repositories,presentation/{controllers,interfaces,routes,validation},repositories,services,mappers}
 ```
 
 ### Step 2: Define Domain Entities
@@ -688,7 +688,7 @@ const schema = {
 
 ```typescript
 // In src/modules/index.ts
-import { router as yourModuleRoutes } from "@app/clean-architecture/modules/your-module/presentation/routes/routes";
+import { router as yourModuleRoutes } from "@app/modules/your-module/presentation/routes/routes";
 
 router.use("/v2/your-module/", yourModuleRoutes);
 ```
