@@ -35,14 +35,14 @@ export class ProductRepositoryAdapter implements IPageDataProductRepository {
       const result = await this.productRepository.findAll(queryOptions);
 
       // Map to page data format with additional fields
-      return result.data.map((product) => ({
+      return result.data.map((product: any) => ({
         id: product.id,
         name: product.name,
         slug: product.slug,
         basePrice: product.price,
         discountPrice: product.comparePrice,
         currency: "USD", // Default currency since not in entity
-        images: product.images.map((img) => img.url),
+        images: product.images.map((img: any) => img.url),
         viewCount: product.viewCount || 0,
         salesCount: 0, // TODO: Implement sales count when needed
         averageRating: this.calculateAverageRating(product),

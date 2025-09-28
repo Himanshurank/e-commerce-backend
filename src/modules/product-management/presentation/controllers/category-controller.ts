@@ -19,7 +19,7 @@ export class CategoryController {
   ): Promise<void> {
     try {
       // Check if user is admin
-      if (req.user?.role !== "admin") {
+      if (req.user?.role !== "ADMIN") {
         res.status(403).json({
           success: false,
           message: "Only administrators can create categories",
@@ -48,107 +48,7 @@ export class CategoryController {
     }
   }
 
-  /**
-   * Get category by ID or slug
-   * GET /api/v1/categories/:identifier
-   */
-  async getCategory(req: AuthenticatedRequest, res: Response): Promise<void> {
-    try {
-      // TODO: Implement get category
-      res.status(501).json({
-        success: false,
-        message: "Get category endpoint not yet implemented",
-      });
-    } catch (error: any) {
-      res.status(400).json({
-        success: false,
-        message: error.message || "Failed to get category",
-      });
-    }
-  }
-
-  /**
-   * Get all categories with hierarchy
-   * GET /api/v1/categories
-   */
-  async getCategories(req: AuthenticatedRequest, res: Response): Promise<void> {
-    try {
-      // TODO: Implement get categories
-      res.status(501).json({
-        success: false,
-        message: "Get categories endpoint not yet implemented",
-      });
-    } catch (error: any) {
-      res.status(400).json({
-        success: false,
-        message: error.message || "Failed to get categories",
-      });
-    }
-  }
-
-  /**
-   * Get category tree
-   * GET /api/v1/categories/tree
-   */
-  async getCategoryTree(
-    req: AuthenticatedRequest,
-    res: Response
-  ): Promise<void> {
-    try {
-      // TODO: Implement get category tree
-      res.status(501).json({
-        success: false,
-        message: "Get category tree endpoint not yet implemented",
-      });
-    } catch (error: any) {
-      res.status(400).json({
-        success: false,
-        message: error.message || "Failed to get category tree",
-      });
-    }
-  }
-
-  /**
-   * Update category (Admin only)
-   * PUT /api/v1/categories/:id
-   */
-  async updateCategory(
-    req: AuthenticatedRequest,
-    res: Response
-  ): Promise<void> {
-    try {
-      // TODO: Implement update category
-      res.status(501).json({
-        success: false,
-        message: "Update category endpoint not yet implemented",
-      });
-    } catch (error: any) {
-      res.status(400).json({
-        success: false,
-        message: error.message || "Failed to update category",
-      });
-    }
-  }
-
-  /**
-   * Delete category (Admin only)
-   * DELETE /api/v1/categories/:id
-   */
-  async deleteCategory(
-    req: AuthenticatedRequest,
-    res: Response
-  ): Promise<void> {
-    try {
-      // TODO: Implement delete category
-      res.status(501).json({
-        success: false,
-        message: "Delete category endpoint not yet implemented",
-      });
-    } catch (error: any) {
-      res.status(400).json({
-        success: false,
-        message: error.message || "Failed to delete category",
-      });
-    }
-  }
+  // Removed unimplemented methods:
+  // - getCategory, getCategories, getCategoryTree, updateCategory, deleteCategory
+  // TODO: Add back when implementing category management features
 }

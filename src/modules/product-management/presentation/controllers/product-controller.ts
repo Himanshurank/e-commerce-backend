@@ -28,7 +28,7 @@ export class ProductController {
       }
 
       // Check if user is a seller
-      if (req.user?.role !== "seller" && req.user?.role !== "admin") {
+      if (req.user?.role !== "SELLER" && req.user?.role !== "ADMIN") {
         res.status(403).json({
           success: false,
           message: "Only sellers can create products",
@@ -107,82 +107,7 @@ export class ProductController {
     }
   }
 
-  /**
-   * Get products with filtering and pagination
-   * GET /api/v1/products
-   */
-  async getProducts(req: AuthenticatedRequest, res: Response): Promise<void> {
-    try {
-      // TODO: Implement get products with filters
-      res.status(501).json({
-        success: false,
-        message: "Get products endpoint not yet implemented",
-      });
-    } catch (error: any) {
-      res.status(400).json({
-        success: false,
-        message: error.message || "Failed to get products",
-      });
-    }
-  }
-
-  /**
-   * Update product
-   * PUT /api/v1/products/:id
-   */
-  async updateProduct(req: AuthenticatedRequest, res: Response): Promise<void> {
-    try {
-      // TODO: Implement update product
-      res.status(501).json({
-        success: false,
-        message: "Update product endpoint not yet implemented",
-      });
-    } catch (error: any) {
-      res.status(400).json({
-        success: false,
-        message: error.message || "Failed to update product",
-      });
-    }
-  }
-
-  /**
-   * Delete product
-   * DELETE /api/v1/products/:id
-   */
-  async deleteProduct(req: AuthenticatedRequest, res: Response): Promise<void> {
-    try {
-      // TODO: Implement delete product
-      res.status(501).json({
-        success: false,
-        message: "Delete product endpoint not yet implemented",
-      });
-    } catch (error: any) {
-      res.status(400).json({
-        success: false,
-        message: error.message || "Failed to delete product",
-      });
-    }
-  }
-
-  /**
-   * Get seller's products
-   * GET /api/v1/seller/products
-   */
-  async getSellerProducts(
-    req: AuthenticatedRequest,
-    res: Response
-  ): Promise<void> {
-    try {
-      // TODO: Implement get seller products
-      res.status(501).json({
-        success: false,
-        message: "Get seller products endpoint not yet implemented",
-      });
-    } catch (error: any) {
-      res.status(400).json({
-        success: false,
-        message: error.message || "Failed to get seller products",
-      });
-    }
-  }
+  // Removed unimplemented methods:
+  // - getProducts, updateProduct, deleteProduct, getSellerProducts
+  // TODO: Add back when implementing product management features
 }

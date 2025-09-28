@@ -41,18 +41,20 @@ export class CategoryRepositoryAdapter implements IPageDataCategoryRepository {
           await this.productCategoryRepository.findRootCategories(queryOptions);
 
         // Map to page data format
-        return rootCategories.slice(0, filters?.limit || 8).map((category) => ({
-          id: category.id,
-          name: category.name,
-          slug: category.slug,
-          description: category.description,
-          image: category.imageUrl,
-          parentId: category.parentId,
-          status: category.isActive ? "ACTIVE" : "INACTIVE",
-          productCount: 0, // TODO: Implement product count when needed
-          createdAt: category.createdAt,
-          updatedAt: category.updatedAt,
-        }));
+        return rootCategories
+          .slice(0, filters?.limit || 8)
+          .map((category: any) => ({
+            id: category.id,
+            name: category.name,
+            slug: category.slug,
+            description: category.description,
+            image: category.imageUrl,
+            parentId: category.parentId,
+            status: category.isActive ? "ACTIVE" : "INACTIVE",
+            productCount: 0, // TODO: Implement product count when needed
+            createdAt: category.createdAt,
+            updatedAt: category.updatedAt,
+          }));
       }
 
       // For all categories, use findAll
@@ -71,7 +73,7 @@ export class CategoryRepositoryAdapter implements IPageDataCategoryRepository {
       const result = await this.productCategoryRepository.findAll(queryOptions);
 
       // Map to page data format
-      return result.data.map((category) => ({
+      return result.data.map((category: any) => ({
         id: category.id,
         name: category.name,
         slug: category.slug,

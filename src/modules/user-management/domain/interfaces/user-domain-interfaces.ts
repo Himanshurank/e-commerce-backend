@@ -2,6 +2,7 @@ import { UserEntity } from "../entities/user-entity";
 import { SellerProfileEntity } from "../entities/seller-profile-entity";
 
 export interface UserDomainService {
+  // Core authentication methods (currently used)
   validateUserRegistration(userData: {
     email: string;
     password: string;
@@ -11,21 +12,9 @@ export interface UserDomainService {
 
   hashPassword(password: string): Promise<string>;
   verifyPassword(password: string, hashedPassword: string): Promise<boolean>;
+
+  // Email verification (placeholder for future implementation)
   generateEmailVerificationToken(userId: string): Promise<string>;
-  verifyEmailToken(
-    token: string
-  ): Promise<{ userId: string; isValid: boolean }>;
 }
 
-export interface UserEmailService {
-  sendWelcomeEmail(user: UserEntity): Promise<void>;
-  sendEmailVerification(
-    user: UserEntity,
-    verificationToken: string
-  ): Promise<void>;
-  sendPasswordResetEmail(user: UserEntity, resetToken: string): Promise<void>;
-  sendSellerApprovalNotification(
-    user: UserEntity,
-    sellerProfile: SellerProfileEntity
-  ): Promise<void>;
-}
+// TODO: Add UserEmailService interface when implementing email functionality

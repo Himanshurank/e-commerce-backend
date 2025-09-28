@@ -16,25 +16,6 @@ const router = Router();
 const categoryController = new CategoryController();
 
 /**
- * Public Routes
- */
-
-// Get all categories
-router.get("/", categoryController.getCategories.bind(categoryController));
-
-// Get category tree
-router.get(
-  "/tree",
-  categoryController.getCategoryTree.bind(categoryController)
-);
-
-// Get category by ID or slug
-router.get(
-  "/:identifier",
-  categoryController.getCategory.bind(categoryController)
-);
-
-/**
  * Admin Only Routes
  */
 
@@ -42,25 +23,11 @@ router.get(
 router.post(
   "/",
   authenticateToken,
-  requireRole(["admin"]),
+  requireRole(["ADMIN"]),
   validateRequest(createCategoryValidation as any),
   categoryController.createCategory.bind(categoryController)
 );
 
-// Update category (Admin only)
-router.put(
-  "/:id",
-  authenticateToken,
-  requireRole(["admin"]),
-  categoryController.updateCategory.bind(categoryController)
-);
-
-// Delete category (Admin only)
-router.delete(
-  "/:id",
-  authenticateToken,
-  requireRole(["admin"]),
-  categoryController.deleteCategory.bind(categoryController)
-);
+// TODO: Add back other routes when implementing full category management
 
 export default router;

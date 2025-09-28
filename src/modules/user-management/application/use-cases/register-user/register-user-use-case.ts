@@ -1,10 +1,7 @@
 import { RegisterUserRequestDto } from "./register-user-request-dto";
 import { RegisterUserResponseDto } from "./register-user-response-dto";
 import { UserRepositoryInterface } from "../../../repositories/user-repository-interface";
-import {
-  UserDomainService,
-  UserEmailService,
-} from "../../../domain/interfaces/user-domain-interfaces";
+import { UserDomainService } from "../../../domain/interfaces/user-domain-interfaces";
 import { UserMapper } from "../../../mappers/user-mapper";
 import { UserRole } from "../../../domain/entities/user-entity";
 import { USER_CONSTANTS } from "../../constants/user-constants";
@@ -13,8 +10,7 @@ import jwt from "jsonwebtoken";
 export class RegisterUserUseCase {
   constructor(
     private userRepository: UserRepositoryInterface,
-    private userDomainService: UserDomainService,
-    private userEmailService: UserEmailService
+    private userDomainService: UserDomainService
   ) {}
 
   async execute(
@@ -61,16 +57,12 @@ export class RegisterUserUseCase {
       savedUser.getRole()
     );
 
-    // 8. Generate email verification token and send email
+    // 8. Generate email verification token (email sending to be implemented later)
     const emailVerificationToken =
       await this.userDomainService.generateEmailVerificationToken(
         savedUser.getId()
       );
-    await this.userEmailService.sendWelcomeEmail(savedUser);
-    await this.userEmailService.sendEmailVerification(
-      savedUser,
-      emailVerificationToken
-    );
+    // TODO: Implement email sending service
 
     // 9. Build response
     const userResponse = UserMapper.toResponseDto(savedUser);

@@ -22,41 +22,7 @@ router.post(
 
 router.post("/logout", UserController.logoutUser);
 
-router.get(
-  "/verify-email/:token",
-  validateRequest({ params: userValidationSchemas.emailVerificationToken }),
-  UserController.verifyEmail
-);
-
-router.post(
-  "/request-password-reset",
-  validateRequest({ body: userValidationSchemas.requestPasswordReset }),
-  UserController.requestPasswordReset
-);
-
-router.post(
-  "/reset-password/:token",
-  validateRequest({
-    params: Joi.object({ token: Joi.string().required() }),
-    body: userValidationSchemas.resetPassword,
-  }),
-  UserController.resetPassword
-);
-
 // Protected routes (authentication required)
-router.get("/profile", authenticateToken, UserController.getUserProfile);
-
-router.put(
-  "/profile",
-  authenticateToken,
-  validateRequest({ body: userValidationSchemas.updateUserProfile }),
-  UserController.updateUserProfile
-);
-
-router.post(
-  "/resend-verification",
-  authenticateToken,
-  UserController.resendEmailVerification
-);
+// TODO: Implement profile management endpoints when needed
 
 export { router as userRoutes };

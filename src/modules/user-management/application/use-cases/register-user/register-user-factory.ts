@@ -18,39 +18,8 @@ export class RegisterUserFactory {
     // Create domain service
     const userDomainService = new UserValidationService();
 
-    // Create email service (placeholder - will be implemented later)
-    const userEmailService = {
-      async sendWelcomeEmail(user: any): Promise<void> {
-        console.log(`Sending welcome email to: ${user.getEmail()}`);
-        // TODO: Implement actual email service
-      },
-      async sendEmailVerification(user: any, token: string): Promise<void> {
-        console.log(
-          `Sending email verification to: ${user.getEmail()} with token: ${token}`
-        );
-        // TODO: Implement actual email service
-      },
-      async sendPasswordResetEmail(user: any, token: string): Promise<void> {
-        console.log(`Sending password reset email to: ${user.getEmail()}`);
-        // TODO: Implement actual email service
-      },
-      async sendSellerApprovalNotification(
-        user: any,
-        sellerProfile: any
-      ): Promise<void> {
-        console.log(
-          `Sending seller approval notification to: ${user.getEmail()}`
-        );
-        // TODO: Implement actual email service
-      },
-    };
-
-    // Create use case
-    const useCase = new RegisterUserUseCase(
-      userRepository,
-      userDomainService,
-      userEmailService
-    );
+    // Create use case (email service removed for now)
+    const useCase = new RegisterUserUseCase(userRepository, userDomainService);
 
     // Create logger service (placeholder)
     const loggerService = {

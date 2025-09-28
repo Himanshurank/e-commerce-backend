@@ -57,21 +57,7 @@ export class UserValidationService implements UserDomainService {
     );
   }
 
-  async verifyEmailToken(
-    token: string
-  ): Promise<{ userId: string; isValid: boolean }> {
-    try {
-      const decoded = jwt.verify(token, this.jwtSecret) as any;
-
-      if (decoded.type !== "email_verification") {
-        return { userId: "", isValid: false };
-      }
-
-      return { userId: decoded.userId, isValid: true };
-    } catch (error) {
-      return { userId: "", isValid: false };
-    }
-  }
+  // Removed verifyEmailToken - not currently used
 
   private isValidEmail(email: string): boolean {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
