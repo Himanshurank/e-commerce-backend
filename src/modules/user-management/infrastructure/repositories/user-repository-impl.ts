@@ -26,20 +26,19 @@ export class UserRepositoryImpl
 
     const query = `
       INSERT INTO ${this.usersTable}
-      (id, email, password_hash, first_name, last_name, role, status, email_verified, phone_number, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (id, email, password, name, role, status, email_verified, phone, created_at, updated_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
     `;
 
     const params = [
       userData.id,
       userData.email,
-      userData.password_hash,
-      userData.first_name,
-      userData.last_name,
+      userData.password,
+      userData.name,
       userData.role,
       userData.status,
       userData.email_verified,
-      userData.phone_number,
+      userData.phone,
       userData.created_at,
       userData.updated_at,
     ];
@@ -51,7 +50,7 @@ export class UserRepositoryImpl
   async getUserById(id: string): Promise<UserEntity | null> {
     const query = `
       SELECT * FROM ${this.usersTable}
-      WHERE id = ? AND deleted_at IS NULL
+      WHERE id = $1 AND deleted_at IS NULL
     `;
 
     const result = await this.databaseService.query(query, [id]);
@@ -66,7 +65,7 @@ export class UserRepositoryImpl
   async getUserByEmail(email: string): Promise<UserEntity | null> {
     const query = `
       SELECT * FROM ${this.usersTable}
-      WHERE email = ? AND deleted_at IS NULL
+      WHERE email = $1 AND deleted_at IS NULL
     `;
 
     const result = await this.databaseService.query(query, [email]);
@@ -83,20 +82,19 @@ export class UserRepositoryImpl
 
     const query = `
       UPDATE ${this.usersTable}
-      SET email = ?, password_hash = ?, first_name = ?, last_name = ?,
-          role = ?, status = ?, email_verified = ?, phone_number = ?, updated_at = ?
-      WHERE id = ? AND deleted_at IS NULL
+      SET email = $1, password = $2, name = $3,
+          role = $4, status = $5, email_verified = $6, phone = $7, updated_at = $8
+      WHERE id = $9 AND deleted_at IS NULL
     `;
 
     const params = [
       userData.email,
-      userData.password_hash,
-      userData.first_name,
-      userData.last_name,
+      userData.password,
+      userData.name,
       userData.role,
       userData.status,
       userData.email_verified,
-      userData.phone_number,
+      userData.phone,
       userData.updated_at,
       id,
     ];
@@ -109,7 +107,7 @@ export class UserRepositoryImpl
     const query = `
       UPDATE ${this.usersTable}
       SET deleted_at = NOW()
-      WHERE id = ?
+      WHERE id = $1
     `;
 
     await this.databaseService.query(query, [id]);
@@ -118,7 +116,7 @@ export class UserRepositoryImpl
   async getUsersByRole(role: string): Promise<UserEntity[]> {
     const query = `
       SELECT * FROM ${this.usersTable}
-      WHERE role = ? AND deleted_at IS NULL
+      WHERE role = $1 AND deleted_at IS NULL
       ORDER BY created_at DESC
     `;
 
@@ -129,7 +127,7 @@ export class UserRepositoryImpl
   async getUsersByStatus(status: string): Promise<UserEntity[]> {
     const query = `
       SELECT * FROM ${this.usersTable}
-      WHERE status = ? AND deleted_at IS NULL
+      WHERE status = $1 AND deleted_at IS NULL
       ORDER BY created_at DESC
     `;
 
@@ -148,29 +146,30 @@ export class UserRepositoryImpl
   }): Promise<{ users: UserEntity[]; total: number }> {
     const conditions: string[] = ["deleted_at IS NULL"];
     const params: any[] = [];
+    let paramIndex = 1;
 
     if (searchParams.email) {
-      conditions.push("email LIKE ?");
+      conditions.push(`email LIKE $${paramIndex++}`);
       params.push(`%${searchParams.email}%`);
     }
 
     if (searchParams.firstName) {
-      conditions.push("first_name LIKE ?");
+      conditions.push(`name LIKE $${paramIndex++}`);
       params.push(`%${searchParams.firstName}%`);
     }
 
     if (searchParams.lastName) {
-      conditions.push("last_name LIKE ?");
+      conditions.push(`name LIKE $${paramIndex++}`);
       params.push(`%${searchParams.lastName}%`);
     }
 
     if (searchParams.role) {
-      conditions.push("role = ?");
+      conditions.push(`role = $${paramIndex++}`);
       params.push(searchParams.role);
     }
 
     if (searchParams.status) {
-      conditions.push("status = ?");
+      conditions.push(`status = $${paramIndex++}`);
       params.push(searchParams.status);
     }
 
@@ -190,7 +189,7 @@ export class UserRepositoryImpl
       SELECT * FROM ${this.usersTable}
       WHERE ${whereClause}
       ORDER BY created_at DESC
-      LIMIT ? OFFSET ?
+      LIMIT $${paramIndex++} OFFSET $${paramIndex++}
     `;
 
     const dataResult = await this.databaseService.query(dataQuery, [
@@ -207,7 +206,7 @@ export class UserRepositoryImpl
     const query = `
       UPDATE ${this.usersTable}
       SET email_verified = true, updated_at = NOW()
-      WHERE id = ?
+      WHERE id = $1
     `;
 
     await this.databaseService.query(query, [userId]);
@@ -219,8 +218,8 @@ export class UserRepositoryImpl
   ): Promise<void> {
     const query = `
       UPDATE ${this.usersTable}
-      SET password_hash = ?, updated_at = NOW()
-      WHERE id = ?
+      SET password = $1, updated_at = NOW()
+      WHERE id = $2
     `;
 
     await this.databaseService.query(query, [passwordHash, userId]);
@@ -237,7 +236,7 @@ export class UserRepositoryImpl
       (id, user_id, business_name, business_description, business_address,
        business_phone, business_email, tax_id, business_license, commission_rate,
        is_verified, bank_account_details, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
     `;
 
     const params = [
@@ -268,7 +267,7 @@ export class UserRepositoryImpl
   ): Promise<SellerProfileEntity | null> {
     const query = `
       SELECT * FROM ${this.sellerProfilesTable}
-      WHERE user_id = ? AND deleted_at IS NULL
+      WHERE user_id = $1 AND deleted_at IS NULL
     `;
 
     const result = await this.databaseService.query(query, [userId]);
@@ -283,7 +282,7 @@ export class UserRepositoryImpl
   async getSellerProfileById(id: string): Promise<SellerProfileEntity | null> {
     const query = `
       SELECT * FROM ${this.sellerProfilesTable}
-      WHERE id = ? AND deleted_at IS NULL
+      WHERE id = $1 AND deleted_at IS NULL
     `;
 
     const result = await this.databaseService.query(query, [id]);
@@ -303,10 +302,10 @@ export class UserRepositoryImpl
 
     const query = `
       UPDATE ${this.sellerProfilesTable}
-      SET business_name = ?, business_description = ?, business_address = ?,
-          business_phone = ?, business_email = ?, tax_id = ?, business_license = ?,
-          commission_rate = ?, is_verified = ?, bank_account_details = ?, updated_at = ?
-      WHERE id = ? AND deleted_at IS NULL
+      SET business_name = $1, business_description = $2, business_address = $3,
+          business_phone = $4, business_email = $5, tax_id = $6, business_license = $7,
+          commission_rate = $8, is_verified = $9, bank_account_details = $10, updated_at = $11
+      WHERE id = $12 AND deleted_at IS NULL
     `;
 
     const params = [
@@ -334,7 +333,7 @@ export class UserRepositoryImpl
     const query = `
       UPDATE ${this.sellerProfilesTable}
       SET deleted_at = NOW()
-      WHERE id = ?
+      WHERE id = $1
     `;
 
     await this.databaseService.query(query, [id]);
@@ -375,7 +374,7 @@ export class UserRepositoryImpl
   } | null> {
     const userQuery = `
       SELECT * FROM ${this.usersTable}
-      WHERE id = ? AND deleted_at IS NULL
+      WHERE id = $1 AND deleted_at IS NULL
     `;
 
     const userResult = await this.databaseService.query(userQuery, [userId]);
@@ -390,7 +389,7 @@ export class UserRepositoryImpl
     if (user.isSeller()) {
       const profileQuery = `
         SELECT * FROM ${this.sellerProfilesTable}
-        WHERE user_id = ? AND deleted_at IS NULL
+        WHERE user_id = $1 AND deleted_at IS NULL
       `;
 
       const profileResult = await this.databaseService.query(profileQuery, [

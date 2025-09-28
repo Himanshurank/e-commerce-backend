@@ -9,13 +9,12 @@ import { v4 as uuidv4 } from "uuid";
 export interface UserPersistenceData {
   id: string;
   email: string;
-  password_hash: string;
-  first_name: string;
-  last_name: string;
+  password: string; // Database uses 'password' not 'password_hash'
+  name: string; // Database uses single 'name' field
   role: string;
   status: string;
   email_verified: boolean;
-  phone_number?: string | undefined;
+  phone?: string | undefined; // Database uses 'phone' not 'phone_number'
   created_at: Date;
   updated_at: Date;
   deleted_at?: Date;
@@ -57,16 +56,21 @@ export interface UserLoginRequestDto {
 
 export class UserMapper {
   static toDomain(data: UserPersistenceData): UserEntity {
+    // Split name into firstName and lastName
+    const nameParts = data.name.split(" ");
+    const firstName = nameParts[0] || "";
+    const lastName = nameParts.slice(1).join(" ") || "";
+
     const props: UserEntityProps = {
       id: data.id,
       email: data.email,
-      passwordHash: data.password_hash,
-      firstName: data.first_name,
-      lastName: data.last_name,
-      role: data.role as UserRole,
-      status: data.status as UserStatus,
+      passwordHash: data.password, // Map password to passwordHash
+      firstName: firstName,
+      lastName: lastName,
+      role: UserMapper.mapDbRoleToDomain(data.role),
+      status: UserMapper.mapDbStatusToDomain(data.status),
       emailVerified: data.email_verified,
-      phoneNumber: data.phone_number,
+      phoneNumber: data.phone,
       createdAt: new Date(data.created_at),
       updatedAt: new Date(data.updated_at),
     };
@@ -80,13 +84,12 @@ export class UserMapper {
     return {
       id: props.id || uuidv4(),
       email: props.email,
-      password_hash: props.passwordHash,
-      first_name: props.firstName,
-      last_name: props.lastName,
-      role: props.role,
-      status: props.status,
+      password: props.passwordHash, // Map passwordHash to password
+      name: `${props.firstName} ${props.lastName}`.trim(), // Combine firstName and lastName
+      role: UserMapper.mapDomainRoleToDb(props.role),
+      status: UserMapper.mapDomainStatusToDb(props.status),
       email_verified: props.emailVerified,
-      phone_number: props.phoneNumber,
+      phone: props.phoneNumber,
       created_at: props.createdAt,
       updated_at: props.updatedAt,
     };
@@ -239,5 +242,62 @@ export class UserMapper {
         totalPages: Math.ceil(searchResult.total / limit),
       },
     };
+  }
+
+  // Helper methods for enum mapping
+  static mapDbRoleToDomain(dbRole: string): UserRole {
+    switch (dbRole.toLowerCase()) {
+      case "customer":
+        return UserRole.CUSTOMER;
+      case "seller":
+        return UserRole.SELLER;
+      case "admin":
+        return UserRole.ADMIN;
+      default:
+        return UserRole.CUSTOMER;
+    }
+  }
+
+  static mapDomainRoleToDb(domainRole: UserRole): string {
+    switch (domainRole) {
+      case UserRole.CUSTOMER:
+        return "customer";
+      case UserRole.SELLER:
+        return "seller";
+      case UserRole.ADMIN:
+        return "admin";
+      default:
+        return "customer";
+    }
+  }
+
+  static mapDbStatusToDomain(dbStatus: string): UserStatus {
+    switch (dbStatus.toLowerCase()) {
+      case "pending":
+        return UserStatus.PENDING_APPROVAL;
+      case "approved":
+        return UserStatus.ACTIVE;
+      case "rejected":
+        return UserStatus.INACTIVE;
+      case "suspended":
+        return UserStatus.SUSPENDED;
+      default:
+        return UserStatus.ACTIVE;
+    }
+  }
+
+  static mapDomainStatusToDb(domainStatus: UserStatus): string {
+    switch (domainStatus) {
+      case UserStatus.PENDING_APPROVAL:
+        return "pending";
+      case UserStatus.ACTIVE:
+        return "approved";
+      case UserStatus.INACTIVE:
+        return "rejected";
+      case UserStatus.SUSPENDED:
+        return "suspended";
+      default:
+        return "approved";
+    }
   }
 }
