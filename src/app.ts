@@ -6,6 +6,7 @@ import dotenv from "dotenv";
 import { LoggerService } from "./shared/services/loggerService";
 import { IDatabaseService } from "./shared/core/interfaces/services/databaseService";
 import { createHomepageRoutes } from "./presentation/routes/homepageRoutes";
+import { createAuthRoutes } from "./presentation/routes/authRoutes";
 
 dotenv.config();
 
@@ -61,6 +62,7 @@ function createApp(databaseService: IDatabaseService) {
 
   // API routes
   app.use("/api/homepage", createHomepageRoutes(databaseService, logger));
+  app.use("/api/auth", createAuthRoutes(databaseService, logger));
 
   // Root endpoint
   app.get("/", (req, res) => {

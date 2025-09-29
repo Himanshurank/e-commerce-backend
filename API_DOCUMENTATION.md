@@ -151,6 +151,121 @@ curl -X GET http://localhost:5000/api/homepage \
 
 ---
 
+## 🔐 Authentication APIs
+
+### User Signup
+
+Register a new user account.
+
+**Endpoint:** `POST /api/auth/signup`
+
+**Headers:**
+
+```json
+{
+  "Content-Type": "application/json"
+}
+```
+
+**Parameters:**
+
+- `email` (string, required) - Valid email address
+- `password` (string, required) - Password (min 8 chars, must contain uppercase, lowercase, and number)
+- `firstName` (string, required) - First name (min 2 characters)
+- `lastName` (string, required) - Last name (min 2 characters)
+- `phone` (string, optional) - Phone number
+- `role` (string, optional) - User role: "customer", "seller", "admin" (defaults to "customer")
+
+**Request Body:**
+
+```typescript
+interface SignupRequest {
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  phone?: string;
+  role?: "customer" | "seller" | "admin";
+}
+```
+
+**Response Type:**
+
+```typescript
+interface SignupResponse {
+  statusCode: 201;
+  data: {
+    id: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+    phone: string | null;
+    role: "customer" | "seller" | "admin";
+    status: "pending" | "approved" | "rejected" | "suspended";
+    emailVerified: boolean;
+    createdAt: string; // ISO date string
+  };
+  message: "User created successfully";
+  success: true;
+}
+```
+
+**Example Request:**
+
+```bash
+curl -X POST http://localhost:5000/api/auth/signup \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "john.doe@example.com",
+    "password": "SecurePassword123",
+    "firstName": "John",
+    "lastName": "Doe",
+    "phone": "+1234567890",
+    "role": "customer"
+  }'
+```
+
+**Example Response:**
+
+```json
+{
+  "statusCode": 201,
+  "data": {
+    "id": "778da7f0-f634-445d-aa6d-b83228ad8ea4",
+    "email": "john.doe@example.com",
+    "firstName": "John",
+    "lastName": "Doe",
+    "phone": "+1234567890",
+    "role": "customer",
+    "status": "approved",
+    "emailVerified": false,
+    "createdAt": "2025-09-29T17:39:56.794Z"
+  },
+  "message": "User created successfully",
+  "success": true
+}
+```
+
+**Error Responses:**
+
+- `400` - Validation error (invalid email, weak password, etc.)
+- `409` - Email already exists
+- `500` - Internal server error
+
+**Validation Rules:**
+
+- **Email**: Must be valid email format
+- **Password**: Minimum 8 characters, must contain:
+  - At least one lowercase letter
+  - At least one uppercase letter
+  - At least one number
+- **First Name**: Minimum 2 characters
+- **Last Name**: Minimum 2 characters
+- **Phone**: Optional, must be valid phone format if provided
+- **Role**: Must be one of: "customer", "seller", "admin"
+
+---
+
 ## 🔧 Health Check APIs
 
 ### Server Health Check
@@ -243,6 +358,28 @@ export interface ApiError {
 export interface HomepageData {
   categories: CategoryDto[];
   featuredProducts: ProductDto[];
+}
+
+// Authentication Types
+export interface SignupRequest {
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  phone?: string;
+  role?: "customer" | "seller" | "admin";
+}
+
+export interface SignupResponse {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  phone: string | null;
+  role: "customer" | "seller" | "admin";
+  status: "pending" | "approved" | "rejected" | "suspended";
+  emailVerified: boolean;
+  createdAt: string;
 }
 
 export interface CategoryDto {
@@ -449,13 +586,17 @@ curl -X METHOD http://localhost:5000/api/path \
 ### v1.0.0 (Current)
 
 - ✅ Homepage API (`GET /api/homepage`)
+- ✅ User Signup API (`POST /api/auth/signup`)
 - ✅ Health check APIs (`GET /health`, `GET /health/db`)
 - ✅ Standard response format
 - ✅ TypeScript type definitions
+- ✅ Input validation and error handling
+- ✅ Password hashing and security
 
 ### Future Versions
 
-- 🔄 Authentication APIs
+- 🔄 User Login API
+- 🔄 Password Reset APIs
 - 🔄 Product catalog APIs
 - 🔄 User management APIs
 - 🔄 Order management APIs
