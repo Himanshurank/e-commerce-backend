@@ -1,0 +1,78 @@
+---
+alwaysApply: true
+---
+
+# Clean Architecture Implementation Rules
+
+This project follows **Clean Architecture** principles with strict layer dependencies and interface-first design.
+
+## Architecture Layers & Dependencies
+
+**Dependency Direction (STRICTLY ENFORCED):**
+
+```
+Presentation → Application → Infrastructure → Domain ← Shared
+```
+
+### Layer Structure
+
+```
+src/
+├── domain/                 # Core business logic (innermost layer)
+│   ├── entities/[feature]/ # Business entities with validation
+│   ├── enum/              # Business enumerations
+│   ├── interfaces/        # Contracts for all layers
+│   │   ├── application/   # Use case contracts
+│   │   ├── infrastructure/# Repository & service contracts
+│   │   └── presentation/  # Controller contracts
+│   └── types/             # Data shape definitions
+├── application/           # Business logic orchestration
+│   ├── Dto/[feature]/     # Data transfer objects
+│   ├── usecases/[feature]/# Business use cases
+│   └── services/          # Business services
+├── infrastructure/        # External concerns implementation
+│   ├── repositories/      # Data persistence implementation
+│   ├── externalServices/  # Third-party service wrappers
+│   └── factories/         # Complex object construction
+├── presentation/          # HTTP interface layer
+│   ├── controllers/       # HTTP request handlers
+│   ├── routes/           # Route definitions
+│   ├── validation/       # Input validation schemas
+│   └── factories/        # Controller dependency wiring
+└── shared/               # Cross-layer utilities
+    ├── core/interfaces/  # Shared interfaces
+    ├── services/         # Infrastructure services
+    ├── middlewares/      # HTTP middlewares
+    └── utils/            # Utility functions
+```
+
+## Critical Rules
+
+### 1. Dependency Rules
+
+- **Domain layer**: ZERO external dependencies
+- **Application layer**: Can only import from Domain
+- **Infrastructure layer**: Can import from Domain + Application
+- **Presentation layer**: Can only import from Application (via factories)
+- **Shared layer**: Can be imported by any layer
+
+### 2. Interface-First Design
+
+- Every class MUST implement an interface defined in domain layer
+- Never import concrete implementations across layers
+- All dependencies injected via constructor using interfaces
+
+### 3. Implementation Order
+
+**ALWAYS implement in this order:**
+
+1. Domain (entities, interfaces, types, enums)
+2. Application (DTOs, use cases)
+3. Infrastructure (repositories, external services)
+4. Presentation (controllers, routes, validation)
+
+## Reference Files
+
+- Complete implementation guide: [CLEAN_ARCHITECTURE_GUIDE.md](mdc:doc/CLEAN_ARCHITECTURE_GUIDE.md)
+- Database schema: [DATABASE_PLANNING.md](mdc:doc/DATABASE_PLANNING.md)
+- Project planning: [COMPREHENSIVE_PLANNING.md](mdc:doc/COMPREHENSIVE_PLANNING.md)

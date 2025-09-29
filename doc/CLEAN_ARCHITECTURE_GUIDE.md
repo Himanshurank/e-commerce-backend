@@ -3,1542 +3,1282 @@
 ## Table of Contents
 
 1. [Overview](#overview)
-2. [Architecture Layers](#architecture-layers)
-3. [Project Structure](#project-structure)
+2. [Architecture Principles](#architecture-principles)
+3. [Layer Structure](#layer-structure)
 4. [Implementation Patterns](#implementation-patterns)
-5. [Module Creation Guide](#module-creation-guide)
-6. [Services and Routes Integration](#services-and-routes-integration)
-7. [Best Practices](#best-practices)
-8. [Examples](#examples)
+5. [Development Workflow](#development-workflow)
+6. [Code Standards](#code-standards)
+7. [Examples](#examples)
+
+---
 
 ## Overview
 
-This document provides a comprehensive guide for implementing Clean Architecture in Node.js/TypeScript projects, based on the implementation in **Avesta-Zeus**. This guide serves as a reference for creating new modules and maintaining consistency across projects.
+This document defines the **Clean Architecture** implementation standard for TypeScript Node.js projects. It ensures consistent, maintainable, and testable code across all projects by enforcing strict layer dependencies and interface-based design.
 
-Clean Architecture separates concerns into distinct layers, making the codebase more maintainable, testable, and independent of external frameworks.
+### Core Philosophy
 
-## Architecture Layers
+- **Dependency Inversion**: Higher layers depend on interfaces, not implementations
+- **Single Responsibility**: Each layer has one clear purpose
+- **Interface Segregation**: Small, focused interfaces over large ones
+- **Testability**: Easy to mock and test each layer independently
 
-### 1. Domain Layer (`domain/`)
+---
 
-**Purpose:** Contains business logic and entities that are independent of external concerns.
+## Architecture Principles
 
-**Components:**
+### 1. **Dependency Direction Rule**
 
-- **Entities:** Core business objects with methods that encapsulate business rules
-- **Interfaces:** Contracts for repositories and services
-- **Services:** Domain-specific business logic
-
-**Example Structure:**
-
-```
-domain/
-├── entities/
-│   ├── agencyDetails.ts
-│   ├── agentDetails.ts
-│   └── listingDetails.ts
-├── interfaces/
-│   └── interface.ts
-└── services/
-    └── staticMapImageServiceImpl.ts
-```
-
-**Entity Pattern:**
-
-```typescript
-export interface AgencyDetailsProps {
-  id: number;
-  name: string;
-  // ... other properties
-}
-
-export class AgencyDetails {
-  private props: AgencyDetailsProps;
-
-  static create(details: AgencyDetailsProps) {
-    const agencyDetails = new AgencyDetails();
-    agencyDetails.props = details;
-    return agencyDetails;
-  }
-
-  getDetails() {
-    return this.props;
-  }
-
-  getId() {
-    return this.props.id;
-  }
-
-  // ... other business methods
-}
-```
-
-### 2. Application Layer (`application/`)
-
-**Purpose:** Orchestrates business logic and coordinates between different layers.
-
-**Components:**
-
-- **Use Cases:** Application-specific business rules
-- **DTOs:** Data Transfer Objects for request/response
-- **Factories:** Dependency injection and object creation
-- **Interfaces:** Application-level contracts
-
-**Example Structure:**
+Dependencies flow **inward only**:
 
 ```
-application/
-├── constants/
-│   └── constants.ts
-├── interfaces/
-│   └── interface.ts
-└── useCases/
-    ├── getAgencyProfile/
-    │   ├── getAgencyProfile.ts
-    │   ├── getAgencyProfileFactory.ts
-    │   ├── getAgencyProfileRequestDto.ts
-    │   └── getAgencyProfileResponseDto.ts
-    └── getAgentProfile/
-        ├── getAgentProfile.ts
-        ├── getAgentProfileFactory.ts
-        ├── getAgentProfileRequestDto.ts
-        └── getAgentProfileResponseDto.ts
+Presentation → Application → Infrastructure → Domain ← Shared
 ```
 
-**Use Case Pattern:**
+### 2. **Interface-First Design**
 
-```typescript
-export class GetAgencyProfile {
-  constructor(
-    private agencyRepo: AgencyRepo,
-    private agentRepo: AgentRepo,
-    private listingRepo: ListingRepo // ... other dependencies
-  ) {}
+- Every class implements an interface defined in the domain layer
+- Never import concrete implementations across layers
+- Use dependency injection for all external dependencies
 
-  async execute(
-    request: GetAgencyProfileRequestDto
-  ): Promise<GetAgencyProfileResponseDto> {
-    // 1. Validate input
-    // 2. Execute business logic
-    // 3. Return response
-    const agency = await this.agencyRepo.getDetailsById(request.id);
-    // ... business logic
-    return response;
-  }
-}
-```
+### 3. **Layer Isolation**
 
-**Factory Pattern:**
+- Each layer can only import from layers below it
+- Domain layer has no external dependencies
+- Shared layer provides cross-cutting concerns
 
-```typescript
-export class GetAgencyProfileFactory {
-  static async create(req: any) {
-    const revBase = RevBaseFactory.create(req);
-    const indexResolver = new IndexResolverImpl();
+### 4. **Naming Conventions**
 
-    // Create repositories
-    const agencyRepo = new AgencyRepoImpl(revBase, indexResolver);
-    const agentRepo = new AgentRepoImpl(revBase, indexResolver);
+- **Interfaces**: `I` prefix (`IUserRepository`, `IEmailService`)
+- **Types**: `T` prefix (`TUserRecord`, `TCreateUserParams`)
+- **Enums**: PascalCase (`UserStatus`, `DataType`)
+- **Files**: camelCase for classes, kebab-case for utilities
 
-    // Create services
-    const staticMapImageService = new StaticMapImageServiceImpl(revBase);
+---
 
-    // Create use case
-    const useCase = new GetAgencyProfile(
-      agencyRepo,
-      agentRepo
-      // ... other dependencies
-    );
-
-    const loggerService = new RevBaseLoggerService(revBase);
-    return { useCase, loggerService };
-  }
-}
-```
-
-### 3. Infrastructure Layer (`infrastructure/`)
-
-**Purpose:** Implements external concerns like databases, APIs, and services.
-
-**Components:**
-
-- **Repositories:** Data access implementations
-- **Services:** External service implementations
-- **Query Builders:** Database query construction
-
-**Example Structure:**
-
-```
-infrastructure/
-├── repositories/
-│   ├── agencyRepoImpl.ts
-│   ├── agentRepoImpl.ts
-│   ├── listingRepoImpl.ts
-│   ├── agencyQueryBuilder.ts
-│   └── listingQueryBuilder.ts
-└── services/
-    └── externalApiService.ts
-```
-
-**Repository Implementation Pattern:**
-
-```typescript
-export class AgencyRepoImpl extends BaseRepository implements AgencyRepo {
-  constructor(
-    revBase: RevAppServiceMain<EConnectionTypes, ESType, CacheType>,
-    private indexResolver: IndexResolverImpl
-  ) {
-    super(revBase);
-  }
-
-  async getDetailsById(agencyId: number): Promise<AgencyDetails | void> {
-    const query = new AgencyQueryBuilder().withAgencyId(agencyId).build();
-
-    const result = await this.executeQuery(query);
-
-    if (result.hits.hits.length > 0) {
-      return AgencyDetailMapper.toDomain(result.hits.hits[0]._source);
-    }
-  }
-}
-```
-
-**Query Builder Pattern:**
-
-```typescript
-export class AgencyQueryBuilder extends BaseOpenSearchQueryBuilder {
-  withAgencyId(agencyId: number): AgencyQueryBuilder {
-    this.mustClauses.push({
-      term: { agencyId },
-    });
-    return this;
-  }
-
-  withVisibleAgenciesOnly(): AgencyQueryBuilder {
-    this.mustClauses.push({
-      term: { isHidden: false },
-    });
-    return this;
-  }
-}
-```
-
-### 4. Presentation Layer (`presentation/`)
-
-**Purpose:** Handles HTTP requests, validation, and response formatting.
-
-**Components:**
-
-- **Controllers:** Handle HTTP requests and responses
-- **Routes:** Define API endpoints
-- **Validation:** Request validation schemas
-- **Interfaces:** Request/response type definitions
-
-**Example Structure:**
-
-```
-presentation/
-├── controllers/
-│   └── controller.ts
-├── interfaces/
-│   └── interface.ts
-├── routes/
-│   └── routes.ts
-└── validation/
-    └── validation.ts
-```
-
-**Controller Pattern:**
-
-```typescript
-export class Controller {
-  static async getAgencyProfile(
-    req: ValidatedRequest<
-      QueryValidationRequestSchema<GetAgencyProfileRequestParams>
-    >,
-    res: Response,
-    next: NextFunction
-  ) {
-    const { useCase, loggerService } = await GetAgencyProfileFactory.create(
-      req
-    );
-
-    try {
-      const params = req.query;
-      const response = await useCase.execute(params);
-
-      res.send({
-        success: true,
-        data: response,
-      });
-    } catch (error) {
-      loggerService.errorLog({
-        data: error,
-        msg: "Get Agency Profile",
-      });
-      return next(error);
-    }
-  }
-}
-```
-
-**Route Definition:**
-
-```typescript
-const router = Router();
-const validator = createValidator({ passError: true });
-
-router.get(
-  "/agency-profile",
-  validator.query(validation.getAgencyProfile),
-  Controller.getAgencyProfile.bind(Controller)
-);
-
-export { router };
-```
-
-**Validation Schema:**
-
-```typescript
-const schema = {
-  getAgencyProfile: Joi.object({
-    id: Joi.number().required(),
-    mapHeight: Joi.string(),
-    mapWidth: Joi.string(),
-    isBot: Joi.boolean(),
-  }),
-};
-```
-
-## Project Structure
-
-### Clean Architecture Module Structure
+## Layer Structure
 
 ```
 src/
-├── shared/                          # Shared components across modules
-│   ├── factories/
-│   │   └── revBaseFactory.ts       # Base factory for dependency injection
-│   ├── infrastructure/
-│   │   ├── repositories/
-│   │   │   ├── baseRepoImpl.ts     # Base repository implementation
-│   │   │   ├── baseOpenSearchQueryBuilder.ts
-│   │   │   └── indexResolverImpl.ts
-│   │   └── services/
-│   │       └── pushMsgToUiTriggerImpl.ts
-│   ├── repositories/
-│   │   └── baseRepository.ts       # Repository interfaces
-│   ├── services/
-│   │   ├── revBaseLoggerService.ts
-│   │   └── updatedTextService.ts
-│   └── utils/
-│       ├── currencyFormatter.ts
-│       └── wordFormatter.ts
-└── modules/                         # Individual business modules
-    ├── find-agent/                 # Example module
-    │   ├── application/
-    │   │   ├── constants/
-    │   │   ├── interfaces/
-    │   │   └── useCases/
-    │   ├── domain/
-    │   │   ├── entities/
-    │   │   ├── interfaces/
-    │   │   └── services/
-    │   ├── infrastructure/
-    │   │   └── repositories/
-    │   ├── mappers/                # Data transformation
-    │   ├── presentation/
-    │   │   ├── controllers/
-    │   │   ├── interfaces/
-    │   │   ├── routes/
-    │   │   └── validation/
-    │   ├── repositories/           # Repository interfaces
-    │   └── services/              # Service interfaces
-    ├── enquiries/
-    ├── track-properties/
-    └── [other-modules]/
+├── domain/                 # Core business logic (innermost layer)
+│   ├── entities/          # Business entities with validation
+│   ├── enum/              # Business enumerations
+│   ├── interfaces/        # Contracts for all layers
+│   │   ├── application/   # Use case contracts
+│   │   ├── infrastructure/# Repository & service contracts
+│   │   └── presentation/  # Controller contracts
+│   └── types/             # Data shape definitions
+│       ├── application/   # Use case parameter types
+│       └── infrastructure/# Repository & service types
+├── application/           # Business logic orchestration
+│   ├── Dto/              # Data transfer objects
+│   ├── mappers/          # Data transformation logic
+│   ├── services/         # Business services
+│   └── usecases/         # Business use cases
+├── infrastructure/        # External concerns implementation
+│   ├── externalServices/ # Third-party service wrappers
+│   ├── factories/        # Complex object construction
+│   └── repositories/     # Data persistence implementation
+├── presentation/          # HTTP interface layer
+│   ├── controllers/      # HTTP request handlers
+│   ├── factories/        # Controller dependency wiring
+│   ├── routes/           # Route definitions
+│   └── validation/       # Input validation schemas
+└── shared/               # Cross-layer utilities
+    ├── constants/        # Application constants
+    ├── core/            # Shared interfaces
+    ├── middlewares/     # HTTP middlewares
+    ├── services/        # Infrastructure services
+    └── utils/           # Utility functions
 ```
 
-### Legacy Module Integration
-
-```
-src/modules/                         # Legacy modules (being migrated)
-├── agency/
-├── findAgent/
-├── listingSearchResult/
-├── login/
-├── p360/
-├── subscriber/
-└── [other-legacy-modules]/
-```
+---
 
 ## Implementation Patterns
 
-### 1. Dependency Injection Pattern
+### 1. Domain Layer Patterns
 
-**Factory Pattern for DI:**
-
-```typescript
-export class UseCaseFactory {
-  static async create(req: any) {
-    // Create base dependencies
-    const revBase = RevBaseFactory.create(req);
-    const indexResolver = new IndexResolverImpl();
-
-    // Create repositories
-    const repo1 = new Repo1Impl(revBase, indexResolver);
-    const repo2 = new Repo2Impl(revBase, indexResolver);
-
-    // Create services
-    const service1 = new Service1Impl(revBase);
-
-    // Create use case with all dependencies
-    const useCase = new UseCase(repo1, repo2, service1);
-    const loggerService = new RevBaseLoggerService(revBase);
-
-    return { useCase, loggerService };
-  }
-}
-```
-
-### 2. Repository Pattern
-
-**Repository Interface:**
+#### Entity Pattern
 
 ```typescript
-export interface EntityRepo extends BaseRepo {
-  getById(id: number): Promise<Entity | void>;
-  getByFilter(filter: FilterProps): Promise<{ data: Entity[]; total: number }>;
-  create(entity: Entity): Promise<void>;
-  update(id: number, entity: Entity): Promise<void>;
-  delete(id: number): Promise<void>;
-}
-```
+// domain/entities/[feature]/[entity].ts
+import { T[Entity]Record } from "../../types/infrastructure/repositories/[entity]Repository";
+import { [Status] } from "../../enum/[status]";
 
-**Repository Implementation:**
-
-```typescript
-export class EntityRepoImpl extends BaseRepository implements EntityRepo {
-  async getById(id: number): Promise<Entity | void> {
-    const query = new EntityQueryBuilder().withId(id).build();
-
-    const result = await this.executeQuery(query);
-
-    if (result.hits.hits.length > 0) {
-      return EntityMapper.toDomain(result.hits.hits[0]._source);
-    }
-  }
-}
-```
-
-### 3. Mapper Pattern
-
-**Domain Mapping:**
-
-```typescript
-export class EntityMapper {
-  static toDomain(data: any): Entity {
-    return Entity.create({
-      id: data.id,
-      name: data.name,
-      // ... map other properties
-    });
-  }
-
-  static toDto(entity: Entity): EntityDto {
-    return {
-      id: entity.getId(),
-      name: entity.getName(),
-      // ... map other properties
-    };
-  }
-
-  static toResponse(entities: Entity[]): EntityResponseDto[] {
-    return entities.map((entity) => this.toDto(entity));
-  }
-}
-```
-
-### 4. Query Builder Pattern
-
-**Fluent Query Builder:**
-
-```typescript
-export class EntityQueryBuilder extends BaseOpenSearchQueryBuilder {
-  withId(id: number): EntityQueryBuilder {
-    this.mustClauses.push({ term: { id } });
-    return this;
-  }
-
-  withStatus(status: string): EntityQueryBuilder {
-    this.mustClauses.push({ term: { status } });
-    return this;
-  }
-
-  withDateRange(from: Date, to: Date): EntityQueryBuilder {
-    this.mustClauses.push({
-      range: {
-        createdAt: {
-          gte: from.toISOString(),
-          lte: to.toISOString(),
-        },
-      },
-    });
-    return this;
-  }
-
-  withPagination(page: number, size: number): EntityQueryBuilder {
-    this.from = (page - 1) * size;
-    this.size = size;
-    return this;
-  }
-
-  withSorting(
-    field: string,
-    order: "asc" | "desc" = "desc"
-  ): EntityQueryBuilder {
-    this.sortClauses.push({ [field]: order });
-    return this;
-  }
-}
-```
-
-## Module Creation Guide
-
-### Step 1: Create Module Structure
-
-```bash
-mkdir -p src/modules/your-module/{application/{useCases,constants,interfaces},domain/{entities,interfaces,services},infrastructure/repositories,presentation/{controllers,interfaces,routes,validation},repositories,services,mappers}
-```
-
-### Step 2: Define Domain Entities
-
-```typescript
-// domain/entities/yourEntity.ts
-export interface YourEntityProps {
-  id: number;
+interface Props {
+  id: string;
   name: string;
-  // ... other properties
+  status: [Status];
+  createdAt: Date;
+  updatedAt: Date;
+  // Optional fields with defaults
+  isActive?: boolean;
+  deletedAt?: Date | null;
 }
 
-export class YourEntity {
-  private props: YourEntityProps;
+export class [Entity] {
+  private readonly _id: string;
+  private readonly _name: string;
+  private readonly _status: [Status];
+  private readonly _createdAt: Date;
+  private readonly _updatedAt: Date;
+  private _isActive: boolean;
+  private _deletedAt: Date | null;
 
-  static create(props: YourEntityProps): YourEntity {
-    const entity = new YourEntity();
-    entity.props = props;
-    return entity;
+  constructor({
+    id,
+    name,
+    status,
+    createdAt,
+    updatedAt,
+    isActive = true,
+    deletedAt = null,
+  }: Props) {
+    this._id = id;
+    this._name = name;
+    this._status = status;
+    this._createdAt = createdAt;
+    this._updatedAt = updatedAt;
+    this._isActive = isActive;
+    this._deletedAt = deletedAt;
+
+    this.validate();
   }
+
+  // Static factory for database records
+  static create(params: T[Entity]Record): [Entity] {
+    return new [Entity]({
+      id: params.id,
+      name: params.name,
+      status: params.status,
+      createdAt: params.created_at,
+      updatedAt: params.updated_at,
+      isActive: params.is_active,
+      deletedAt: params.deleted_at,
+    });
+  }
+
+  // Getters
+  get id(): string { return this._id; }
+  get name(): string { return this._name; }
+  get status(): [Status] { return this._status; }
+  get createdAt(): Date { return this._createdAt; }
+  get updatedAt(): Date { return this._updatedAt; }
+  get isActive(): boolean { return this._isActive; }
+  get deletedAt(): Date | null { return this._deletedAt; }
 
   // Business methods
-  getId(): number {
-    return this.props.id;
+  public canBeDeleted(): boolean {
+    return this._isActive && !this._deletedAt;
   }
 
-  getName(): string {
-    return this.props.name;
+  public deactivate(): [Entity] {
+    return new [Entity]({
+      ...this.toDomainProps(),
+      isActive: false,
+      updatedAt: new Date(),
+    });
   }
 
-  // Business logic methods
-  isValid(): boolean {
-    return this.props.name.length > 0;
-  }
-}
-```
-
-### Step 3: Define Repository Interfaces
-
-```typescript
-// repositories/yourEntityRepository.ts
-export interface YourEntityRepo extends BaseRepo {
-  getById(id: number): Promise<YourEntity | void>;
-  getAll(): Promise<YourEntity[]>;
-  create(entity: YourEntity): Promise<void>;
-  update(id: number, entity: YourEntity): Promise<void>;
-  delete(id: number): Promise<void>;
-}
-```
-
-### Step 4: Implement Repository
-
-```typescript
-// infrastructure/repositories/yourEntityRepoImpl.ts
-export class YourEntityRepoImpl
-  extends BaseRepository
-  implements YourEntityRepo
-{
-  constructor(
-    revBase: RevAppServiceMain<EConnectionTypes, ESType, CacheType>,
-    private indexResolver: IndexResolverImpl
-  ) {
-    super(revBase);
-  }
-
-  async getById(id: number): Promise<YourEntity | void> {
-    const query = new YourEntityQueryBuilder().withId(id).build();
-
-    const result = await this.executeQuery(query);
-
-    if (result.hits.hits.length > 0) {
-      return YourEntityMapper.toDomain(result.hits.hits[0]._source);
+  private validate(): void {
+    if (!this._id) {
+      throw new Error("[Entity] id is required");
+    }
+    if (!this._name || this._name.trim().length === 0) {
+      throw new Error("[Entity] name is required");
+    }
+    if (!Object.values([Status]).includes(this._status)) {
+      throw new Error("[Entity] status must be valid");
     }
   }
-}
-```
 
-### Step 5: Create Use Case
-
-```typescript
-// application/useCases/getYourEntity/getYourEntity.ts
-export class GetYourEntity {
-  constructor(private yourEntityRepo: YourEntityRepo) {}
-
-  async execute(
-    request: GetYourEntityRequestDto
-  ): Promise<GetYourEntityResponseDto> {
-    const entity = await this.yourEntityRepo.getById(request.id);
-
-    if (!entity) {
-      throw new Error("Entity not found");
-    }
-
-    return YourEntityMapper.toResponse(entity);
+  private toDomainProps(): Props {
+    return {
+      id: this._id,
+      name: this._name,
+      status: this._status,
+      createdAt: this._createdAt,
+      updatedAt: this._updatedAt,
+      isActive: this._isActive,
+      deletedAt: this._deletedAt,
+    };
   }
 }
 ```
 
-### Step 6: Create Factory
+#### Interface Pattern
 
 ```typescript
-// application/useCases/getYourEntity/getYourEntityFactory.ts
-export class GetYourEntityFactory {
-  static async create(req: any) {
-    const revBase = RevBaseFactory.create(req);
-    const indexResolver = new IndexResolverImpl();
-    const yourEntityRepo = new YourEntityRepoImpl(revBase, indexResolver);
+// domain/interfaces/infrastructure/repositories/[entity]Repository.ts
+import { [Entity] } from "../../../entities/[feature]/[entity]";
+import { TCreate[Entity]Params, T[Entity]Record } from "../../../types/infrastructure/repositories/[entity]Repository";
 
-    const useCase = new GetYourEntity(yourEntityRepo);
-    const loggerService = new RevBaseLoggerService(revBase);
-
-    return { useCase, loggerService };
-  }
+export interface I[Entity]Repository {
+  create(params: TCreate[Entity]Params): Promise<[Entity]>;
+  findById(id: string): Promise<[Entity] | null>;
+  findByUserId(userId: string): Promise<[Entity][]>;
+  update(id: string, params: Partial<TCreate[Entity]Params>): Promise<[Entity]>;
+  delete(id: string): Promise<void>;
+  // Additional business-specific methods
+  findByNameAndUserId(name: string, userId: string): Promise<[Entity] | null>;
 }
 ```
 
-### Step 7: Create Controller
+#### Type Pattern
 
 ```typescript
-// presentation/controllers/controller.ts
-export class Controller {
-  static async getYourEntity(
-    req: ValidatedRequest<
-      QueryValidationRequestSchema<GetYourEntityRequestParams>
-    >,
-    res: Response,
-    next: NextFunction
-  ) {
-    const { useCase, loggerService } = await GetYourEntityFactory.create(req);
+// domain/types/infrastructure/repositories/[entity]Repository.ts
+import { [Status] } from "../../../enum/[status]";
 
-    try {
-      const params = req.query;
-      const response = await useCase.execute(params);
+export type T[Entity]Record = {
+  id: string;
+  user_id: string;
+  name: string;
+  status: [Status];
+  is_active: boolean;
+  created_at: Date;
+  updated_at: Date;
+  deleted_at: Date | null;
+};
 
-      res.send({
-        success: true,
-        data: response,
-      });
-    } catch (error) {
-      loggerService.errorLog({
-        data: error,
-        msg: "Get Your Entity",
-      });
-      return next(error);
-    }
-  }
-}
-```
+export type TCreate[Entity]Params = {
+  userId: string;
+  name: string;
+  status: [Status];
+};
 
-### Step 8: Define Routes and Validation
-
-```typescript
-// presentation/routes/routes.ts
-const router = Router();
-const validator = createValidator({ passError: true });
-
-router.get(
-  "/your-entity",
-  validator.query(validation.getYourEntity),
-  Controller.getYourEntity.bind(Controller)
-);
-
-export { router };
-```
-
-```typescript
-// presentation/validation/validation.ts
-const schema = {
-  getYourEntity: Joi.object({
-    id: Joi.number().required(),
-    // ... other validation rules
-  }),
+export type TUpdate[Entity]Params = {
+  name?: string;
+  status?: [Status];
+  isActive?: boolean;
 };
 ```
 
-### Step 9: Register Routes
+#### Enum Pattern
 
 ```typescript
-// In src/modules/index.ts
-import { router as yourModuleRoutes } from "@app/modules/your-module/presentation/routes/routes";
-
-router.use("/v2/your-module/", yourModuleRoutes);
-```
-
-## Services and Routes Integration
-
-### Traditional Module Structure (Legacy)
-
-```
-src/modules/agency/
-├── agency.controller.ts
-├── agency.route.ts
-├── agency.service.ts
-└── agency.interface.ts
-```
-
-### Clean Architecture Integration
-
-Clean architecture modules integrate with the existing route structure:
-
-**Public Routes (`/api/pubui/`):**
-
-```typescript
-// src/modules/index.ts
-router.use("/v2/find-agent/", cleanArchFindAgent);
-router.use("/v2/enquiries/", cleanArchEnquiries);
-router.use("/v2/affordability-search", cleanAffordabilitySearch);
-```
-
-**Internal Routes (`/api/internal/`):**
-
-```typescript
-// src/modules/index.internal.routes.ts
-router.use("/v2/find-agent/", cleanArchFindAgent);
-router.use("/ai-search", listingAiSearchRoutes);
-```
-
-### Service Integration Patterns
-
-**External Service Integration:**
-
-```typescript
-// infrastructure/services/externalApiService.ts
-export class ExternalApiServiceImpl implements ExternalApiService {
-  constructor(private httpClient: HttpClient) {}
-
-  async fetchData(params: any): Promise<any> {
-    const response = await this.httpClient.get("/api/endpoint", { params });
-    return response.data;
-  }
+// domain/enum/[enumName].ts
+/**
+ * [Description of what this enum represents]
+ * Used by: [Entity1], [Entity2], [Feature] APIs
+ */
+export enum [EnumName] {
+  [VALUE1] = "[value1]",
+  [VALUE2] = "[value2]",
+  [VALUE3] = "[value3]",
 }
 ```
 
-**Database Service Integration:**
+### 2. Application Layer Patterns
+
+#### Use Case Pattern
 
 ```typescript
-// infrastructure/repositories/baseRepoImpl.ts
-export class BaseRepository {
+// application/usecases/[feature]/[action][Entity]UseCase.ts
+import { I[Entity]Repository } from "../../../domain/interfaces/infrastructure/repositories/[entity]Repository";
+import { ILoggerService } from "../../../shared/core/interfaces/services/loggerService";
+import { [Action][Entity]RequestDto } from "../../Dto/[feature]/[action][Entity]";
+import { [Entity] } from "../../../domain/entities/[feature]/[entity]";
+
+export class [Action][Entity]UseCase {
   constructor(
-    protected revBase: RevAppServiceMain<EConnectionTypes, ESType, CacheType>
+    private readonly [entity]Repository: I[Entity]Repository,
+    private readonly logger: ILoggerService,
+    // Additional services as needed
+    private readonly [optional]Service?: I[Optional]Service
   ) {}
 
-  protected async executeQuery(query: any): Promise<any> {
-    const esService = this.revBase.getElasticSearchService("rev");
-    return await esService.search(query);
-  }
-
-  protected async executeMysqlQuery(query: string): Promise<any> {
-    const dbService = this.revBase.getDbService("rev");
-    return await dbService.query(query);
-  }
-}
-```
-
-**Cache Service Integration:**
-
-```typescript
-// infrastructure/services/cacheService.ts
-export class CacheServiceImpl implements CacheService {
-  constructor(
-    private revBase: RevAppServiceMain<EConnectionTypes, ESType, CacheType>
-  ) {}
-
-  async get<T>(key: string): Promise<T | null> {
-    const cacheService = this.revBase.getCacheService("rev");
-    return await cacheService.get(key);
-  }
-
-  async set(key: string, value: any, ttl?: number): Promise<void> {
-    const cacheService = this.revBase.getCacheService("rev");
-    await cacheService.set(key, value, ttl);
-  }
-}
-```
-
-## Best Practices
-
-### 1. Dependency Direction
-
-- **Domain** should not depend on any other layer
-- **Application** can depend on Domain
-- **Infrastructure** can depend on Domain and Application
-- **Presentation** can depend on Application (through factories)
-
-### 2. Error Handling
-
-```typescript
-// Use case level error handling
-export class UseCase {
-  async execute(request: RequestDto): Promise<ResponseDto> {
+  async execute(params: [Action][Entity]RequestDto): Promise<[Entity]> {
     try {
-      // Business logic
-    } catch (error) {
-      // Transform domain errors to application errors
-      if (error instanceof DomainError) {
-        throw new ApplicationError(error.message);
+      this.logger.info("Executing [action][entity] use case", {
+        [contextField]: params.[contextField]
+      });
+
+      // 1. Business validation
+      const existing = await this.[entity]Repository.findByNameAndUserId(
+        params.name,
+        params.userId
+      );
+
+      if (existing && shouldPreventDuplicates) {
+        this.logger.error("[Entity] already exists", {
+          name: params.name,
+          userId: params.userId,
+        });
+        throw new Error("[Entity] already exists");
       }
+
+      // 2. Main business logic
+      const [entity] = await this.[entity]Repository.create({
+        userId: params.userId,
+        name: params.name,
+        status: params.status,
+      });
+
+      // 3. Side effects (optional)
+      if (this.[optional]Service) {
+        await this.[optional]Service.performSideEffect([entity].id);
+      }
+
+      this.logger.info("[Action][entity] completed successfully", {
+        [entity]Id: [entity].id,
+      });
+
+      return [entity]; // Always return entities, never DTOs
+    } catch (error) {
+      this.logger.error("[Action][entity] use case failed", {
+        error,
+        [contextField]: params.[contextField],
+      });
       throw error;
     }
   }
 }
-
-// Controller level error handling
-export class Controller {
-  static async action(req: Request, res: Response, next: NextFunction) {
-    try {
-      const result = await useCase.execute(request);
-      res.send({ success: true, data: result });
-    } catch (error) {
-      loggerService.errorLog({ data: error, msg: "Action failed" });
-      return next(error);
-    }
-  }
-}
 ```
 
-### 3. Validation
-
-- **Input Validation:** At presentation layer using Joi
-- **Business Rule Validation:** In domain entities and use cases
-- **Data Validation:** In repository implementations
-
-### 4. Performance Considerations
-
-- **Caching:** Implement at repository level
-- **Query Optimization:** Use query builders for efficient queries
-- **Pagination:** Always implement for list endpoints
-- **Lazy Loading:** Load related data only when needed
-
-### 5. Security
-
-- **Input Sanitization:** At presentation layer
-- **Authorization:** In use cases or middleware
-- **Rate Limiting:** At route level
-- **SQL Injection Prevention:** Use parameterized queries
-
-## Database Management in Clean Architecture
-
-### Database Architecture Overview
-
-The project uses multiple databases and search engines to handle different aspects of the application:
-
-**Database Types:**
-
-- **MySQL Databases:** Primary relational data storage
-- **Elasticsearch:** Search and analytics
-- **Redis:** Caching layer
-
-**Database Connections:**
+#### DTO Pattern
 
 ```typescript
-// From coreLibConsumerAppService.ts
-export enum EConnectionTypes {
-  zenu = "zenu", // Legacy property data
-  rev = "rev", // Main application database
-  corelogic = "corelogic", // External property data
-  revLogs = "revLogs", // Application logs
-  subscriber = "subscriber", // User subscription data
-}
-```
+// application/Dto/[feature]/[action][Entity].ts
+import { [Status] } from "../../../domain/entities/[feature]/[entity]";
+import { [Entity] } from "../../../domain/entities/[feature]/[entity]";
 
-### Database Configuration
-
-**Configuration Structure:**
-
-```json
-// config/default.json
-{
-  "db": {
-    "rev": {
-      "isRequired": "@@REV_DB_REQUIRED",
-      "name": "rev"
-    },
-    "revLogs": {
-      "isRequired": true,
-      "name": "revLogs"
-    },
-    "zenu": {
-      "isRequired": false,
-      "name": "zenu"
-    },
-    "cl": {
-      "isRequired": false,
-      "name": "corelogic"
-    },
-    "subscriber": {
-      "isRequired": true,
-      "name": "subscriber"
-    }
-  },
-  "elasticsearch": {
-    "rev": {
-      "isRequired": true,
-      "config": {
-        "host": "@@REV_ES_HOST"
-      },
-      "name": "rev"
-    },
-    "zenu": {
-      "isRequired": false,
-      "name": "zenu"
-    }
-  },
-  "cache": {
-    "rev": {
-      "isRequired": true,
-      "config": {
-        "readClientCount": "@@REDIS_READ_CLIENT_COUNT"
-      },
-      "name": "rev"
-    }
-  }
-}
-```
-
-### Repository Pattern for Database Access
-
-**Base Repository Implementation:**
-
-```typescript
-// shared/infrastructure/repositories/baseRepoImpl.ts
-export class BaseRepository {
+export class [Action][Entity]RequestDto {
   constructor(
-    protected revBase: RevAppServiceMain<EConnectionTypes, ESType, CacheType>
+    public name: string,
+    public status: [Status],
+    public userId: string,
+    public optionalField?: string
   ) {}
 
-  // MySQL Database Operations
-  protected async executeMysqlQuery(
-    query: string,
-    params?: any[],
-    connection: EConnectionTypes = EConnectionTypes.rev
-  ): Promise<any> {
-    const dbService = this.revBase.getDbService(connection);
-    return await dbService.query(query, params);
-  }
-
-  protected async executeMysqlTransaction(
-    queries: Array<{ query: string; params?: any[] }>,
-    connection: EConnectionTypes = EConnectionTypes.rev
-  ): Promise<any> {
-    const dbService = this.revBase.getDbService(connection);
-    return await dbService.transaction(queries);
-  }
-
-  // Elasticsearch Operations
-  protected async executeElasticsearchQuery(
-    index: string,
-    query: any,
-    connection: ESType = EConnectionTypes.rev
-  ): Promise<any> {
-    const esService = this.revBase.getElasticSearchService(connection);
-    return await esService.search({
-      index,
-      body: query,
-    });
-  }
-
-  protected async indexDocument(
-    index: string,
-    id: string,
-    document: any,
-    connection: ESType = EConnectionTypes.rev
-  ): Promise<any> {
-    const esService = this.revBase.getElasticSearchService(connection);
-    return await esService.index({
-      index,
-      id,
-      body: document,
-    });
-  }
-
-  protected async updateDocument(
-    index: string,
-    id: string,
-    document: any,
-    connection: ESType = EConnectionTypes.rev
-  ): Promise<any> {
-    const esService = this.revBase.getElasticSearchService(connection);
-    return await esService.update({
-      index,
-      id,
-      body: { doc: document },
-    });
-  }
-
-  // Cache Operations
-  protected async getCacheData<T>(
-    key: string,
-    connection: CacheType = EConnectionTypes.rev
-  ): Promise<T | null> {
-    const cacheService = this.revBase.getCacheService(connection);
-    return await cacheService.get<T>(key);
-  }
-
-  protected async setCacheData(
-    key: string,
-    value: any,
-    ttl?: number,
-    connection: CacheType = EConnectionTypes.rev
-  ): Promise<void> {
-    const cacheService = this.revBase.getCacheService(connection);
-    await cacheService.set(key, value, ttl);
-  }
-
-  protected async deleteCacheData(
-    key: string,
-    connection: CacheType = EConnectionTypes.rev
-  ): Promise<void> {
-    const cacheService = this.revBase.getCacheService(connection);
-    await cacheService.del(key);
-  }
-}
-```
-
-### Database-Specific Repository Implementations
-
-**MySQL Repository Pattern:**
-
-```typescript
-// infrastructure/repositories/agencyMysqlRepoImpl.ts
-export class AgencyMysqlRepoImpl extends BaseRepository implements AgencyRepo {
-  private tableName = "agencies";
-
-  async getDetailsById(agencyId: number): Promise<AgencyDetails | void> {
-    const query = `
-			SELECT
-				id, name, postcode, suburb_id, suburb_name, state,
-				address_line1, address_line2, phone, website,
-				brand_colour, logo_file_name, description
-			FROM ${this.tableName}
-			WHERE id = ? AND is_active = 1
-		`;
-
-    const result = await this.executeMysqlQuery(query, [agencyId]);
-
-    if (result.length > 0) {
-      return AgencyDetailMapper.fromMysqlRow(result[0]);
-    }
-  }
-
-  async create(agency: AgencyDetails): Promise<void> {
-    const query = `
-			INSERT INTO ${this.tableName}
-			(name, postcode, suburb_id, address_line1, phone, website, created_at)
-			VALUES (?, ?, ?, ?, ?, ?, NOW())
-		`;
-
-    const details = agency.getDetails();
-    await this.executeMysqlQuery(query, [
-      details.name,
-      details.postcode,
-      details.suburbId,
-      details.addressLine1,
-      details.phone,
-      details.website,
-    ]);
-  }
-
-  async update(agencyId: number, agency: AgencyDetails): Promise<void> {
-    const query = `
-			UPDATE ${this.tableName}
-			SET name = ?, postcode = ?, phone = ?, website = ?, updated_at = NOW()
-			WHERE id = ?
-		`;
-
-    const details = agency.getDetails();
-    await this.executeMysqlQuery(query, [
-      details.name,
-      details.postcode,
-      details.phone,
-      details.website,
-      agencyId,
-    ]);
-  }
-
-  async delete(agencyId: number): Promise<void> {
-    const query = `
-			UPDATE ${this.tableName}
-			SET is_active = 0, deleted_at = NOW()
-			WHERE id = ?
-		`;
-
-    await this.executeMysqlQuery(query, [agencyId]);
-  }
-}
-```
-
-**Elasticsearch Repository Pattern:**
-
-```typescript
-// infrastructure/repositories/agencyEsRepoImpl.ts
-export class AgencyEsRepoImpl extends BaseRepository implements AgencyRepo {
-  private indexName = "agencies";
-
-  async getDetailsById(agencyId: number): Promise<AgencyDetails | void> {
-    const query = new AgencyQueryBuilder()
-      .withAgencyId(agencyId)
-      .withActiveOnly()
-      .build();
-
-    const result = await this.executeElasticsearchQuery(this.indexName, query);
-
-    if (result.hits.hits.length > 0) {
-      return AgencyDetailMapper.fromElasticsearchHit(result.hits.hits[0]);
-    }
-  }
-
-  async searchAgencies(
-    searchParams: AgencySearchParams
-  ): Promise<{ data: AgencyDetails[]; total: number }> {
-    const query = new AgencyQueryBuilder()
-      .withLocationFilter(searchParams.suburbId)
-      .withPropertyTypeFilter(searchParams.propertyTypes)
-      .withPagination(searchParams.page, searchParams.size)
-      .withSorting(searchParams.sort)
-      .build();
-
-    const result = await this.executeElasticsearchQuery(this.indexName, query);
-
-    const agencies = result.hits.hits.map((hit: any) =>
-      AgencyDetailMapper.fromElasticsearchHit(hit)
-    );
-
-    return {
-      data: agencies,
-      total: result.hits.total.value,
-    };
-  }
-
-  async indexAgency(agency: AgencyDetails): Promise<void> {
-    const document = AgencyDetailMapper.toElasticsearchDocument(agency);
-    await this.indexDocument(
-      this.indexName,
-      agency.getId().toString(),
-      document
+  static fromDto(req: any): [Action][Entity]RequestDto {
+    return new [Action][Entity]RequestDto(
+      req.body.name,
+      req.body.status,
+      req.user.userId, // From auth middleware
+      req.body.optionalField
     );
   }
+}
 
-  async updateAgencyIndex(
-    agencyId: number,
-    agency: AgencyDetails
-  ): Promise<void> {
-    const document = AgencyDetailMapper.toElasticsearchDocument(agency);
-    await this.updateDocument(this.indexName, agencyId.toString(), document);
+export class [Action][Entity]ResponseDto {
+  constructor(
+    public id: string,
+    public name: string,
+    public status: string,
+    public createdAt: string
+  ) {}
+
+  static toDto([entity]: [Entity]): [Action][Entity]ResponseDto {
+    return new [Action][Entity]ResponseDto(
+      [entity].id,
+      [entity].name,
+      [entity].status,
+      [entity].createdAt.toISOString()
+    );
   }
 }
 ```
 
-### Query Builder Patterns
+### 3. Infrastructure Layer Patterns
 
-**Base Query Builder:**
+#### Repository Pattern
 
 ```typescript
-// shared/infrastructure/repositories/baseOpenSearchQueryBuilder.ts
-export class BaseOpenSearchQueryBuilder {
-  protected mustClauses: any[] = [];
-  protected shouldClauses: any[] = [];
-  protected filterClauses: any[] = [];
-  protected mustNotClauses: any[] = [];
-  protected sortClauses: any[] = [];
-  protected from: number = 0;
-  protected size: number = 25;
+// infrastructure/repositories/[entity]RepoImpl.ts
+import { I[Entity]Repository } from "../../domain/interfaces/infrastructure/repositories/[entity]Repository";
+import { IDatabaseService } from "../../shared/core/interfaces/services/databaseService";
+import { [Entity] } from "../../domain/entities/[feature]/[entity]";
+import {
+  TCreate[Entity]Params,
+  T[Entity]Record
+} from "../../domain/types/infrastructure/repositories/[entity]Repository";
+import { IdGeneratorService } from "../externalServices/idGeneratorService";
 
-  build(): any {
-    const query: any = {
-      query: {
-        bool: {
-          must: this.mustClauses,
-          should: this.shouldClauses,
-          filter: this.filterClauses,
-          must_not: this.mustNotClauses,
-        },
-      },
-      from: this.from,
-      size: this.size,
-    };
+export class [Entity]RepoImpl implements I[Entity]Repository {
+  private readonly tableName = "[table_name]";
 
-    if (this.sortClauses.length > 0) {
-      query.sort = this.sortClauses;
-    }
+  constructor(private readonly databaseService: IDatabaseService) {}
 
-    return query;
-  }
-
-  withPagination(page: number, size: number): this {
-    this.from = (page - 1) * size;
-    this.size = size;
-    return this;
-  }
-
-  withTermFilter(field: string, value: any): this {
-    this.mustClauses.push({ term: { [field]: value } });
-    return this;
-  }
-
-  withRangeFilter(field: string, gte?: any, lte?: any): this {
-    const range: any = {};
-    if (gte !== undefined) range.gte = gte;
-    if (lte !== undefined) range.lte = lte;
-
-    this.mustClauses.push({ range: { [field]: range } });
-    return this;
-  }
-
-  withTextSearch(field: string, text: string): this {
-    this.mustClauses.push({
-      match: { [field]: text },
+  async create(params: TCreate[Entity]Params): Promise<[Entity]> {
+    const [entity] = [Entity].create({
+      id: IdGeneratorService.getInstance().generateUUID(),
+      user_id: params.userId,
+      name: params.name,
+      status: params.status,
+      is_active: true,
+      created_at: new Date(),
+      updated_at: new Date(),
+      deleted_at: null,
     });
-    return this;
-  }
 
-  withMultiMatch(fields: string[], text: string): this {
-    this.mustClauses.push({
-      multi_match: {
-        query: text,
-        fields: fields,
-      },
-    });
-    return this;
-  }
-}
-```
+    const query = `
+      INSERT INTO ${this.tableName} (
+        id, user_id, name, status, is_active, created_at, updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+    `;
 
-**Specific Query Builder:**
-
-```typescript
-// infrastructure/repositories/agencyQueryBuilder.ts
-export class AgencyQueryBuilder extends BaseOpenSearchQueryBuilder {
-  withAgencyId(agencyId: number): AgencyQueryBuilder {
-    this.mustClauses.push({ term: { agencyId } });
-    return this;
-  }
-
-  withActiveOnly(): AgencyQueryBuilder {
-    this.mustClauses.push({ term: { isActive: true } });
-    return this;
-  }
-
-  withLocationFilter(suburbId: number): AgencyQueryBuilder {
-    this.mustClauses.push({ term: { suburbId } });
-    return this;
-  }
-
-  withPropertyTypeFilter(propertyTypes?: string[]): AgencyQueryBuilder {
-    if (propertyTypes && propertyTypes.length > 0) {
-      this.mustClauses.push({ terms: { propertyTypes } });
-    }
-    return this;
-  }
-
-  withPerformanceSort(sortType: EAgencySrSortTypes): AgencyQueryBuilder {
-    switch (sortType) {
-      case EAgencySrSortTypes.sold:
-        this.sortClauses.push({ numberOfSoldListings: "desc" });
-        break;
-      case EAgencySrSortTypes.forSale:
-        this.sortClauses.push({ numberOfBuyListings: "desc" });
-        break;
-      case EAgencySrSortTypes.forRent:
-        this.sortClauses.push({ numberOfRentListings: "desc" });
-        break;
-      default:
-        this.sortClauses.push({ _score: "desc" });
-    }
-    return this;
-  }
-}
-```
-
-### Transaction Management
-
-**Database Transactions:**
-
-```typescript
-// infrastructure/repositories/agencyTransactionRepo.ts
-export class AgencyTransactionRepo extends BaseRepository {
-  async createAgencyWithListings(
-    agency: AgencyDetails,
-    listings: ListingDetails[]
-  ): Promise<void> {
-    const queries = [
-      {
-        query: `
-					INSERT INTO agencies (name, postcode, suburb_id, created_at)
-					VALUES (?, ?, ?, NOW())
-				`,
-        params: [agency.getName(), agency.getPostcode(), agency.getSuburbId()],
-      },
+    const values = [
+      [entity].id,
+      [entity].userId,
+      [entity].name,
+      [entity].status,
+      [entity].isActive,
+      [entity].createdAt,
+      [entity].updatedAt,
     ];
 
-    // Add listing queries
-    listings.forEach((listing) => {
-      queries.push({
-        query: `
-					INSERT INTO listings (agency_id, title, price, created_at)
-					VALUES (LAST_INSERT_ID(), ?, ?, NOW())
-				`,
-        params: [listing.getTitle(), listing.getPrice()],
-      });
-    });
-
-    await this.executeMysqlTransaction(queries);
+    await this.databaseService.insert(query, values, "create[Entity]");
+    return [entity];
   }
 
-  async updateAgencyAndSyncElasticsearch(
-    agencyId: number,
-    agency: AgencyDetails
-  ): Promise<void> {
-    // Update MySQL
-    const mysqlQuery = `
-			UPDATE agencies
-			SET name = ?, postcode = ?, updated_at = NOW()
-			WHERE id = ?
-		`;
+  async findById(id: string): Promise<[Entity] | null> {
+    const query = `
+      SELECT id, user_id, name, status, is_active, created_at, updated_at, deleted_at
+      FROM ${this.tableName}
+      WHERE id = $1 AND deleted_at IS NULL
+    `;
 
-    await this.executeMysqlQuery(mysqlQuery, [
-      agency.getName(),
-      agency.getPostcode(),
-      agencyId,
-    ]);
+    const result = await this.databaseService.select<T[Entity]Record>(
+      query,
+      [id],
+      "find[Entity]ById"
+    );
 
-    // Update Elasticsearch
-    const esDocument = AgencyDetailMapper.toElasticsearchDocument(agency);
-    await this.updateDocument("agencies", agencyId.toString(), esDocument);
-
-    // Clear cache
-    await this.deleteCacheData(`agency:${agencyId}`);
+    return result[0] ? [Entity].create(result[0]) : null;
   }
-}
-```
 
-### Caching Strategies
+  async findByUserId(userId: string): Promise<[Entity][]> {
+    const query = `
+      SELECT id, user_id, name, status, is_active, created_at, updated_at, deleted_at
+      FROM ${this.tableName}
+      WHERE user_id = $1 AND deleted_at IS NULL
+      ORDER BY created_at DESC
+    `;
 
-**Repository-Level Caching:**
+    const result = await this.databaseService.select<T[Entity]Record>(
+      query,
+      [userId],
+      "find[Entity]ByUserId"
+    );
 
-```typescript
-// infrastructure/repositories/cachedAgencyRepoImpl.ts
-export class CachedAgencyRepoImpl extends BaseRepository implements AgencyRepo {
-  private cachePrefix = "agency";
-  private defaultTTL = 3600; // 1 hour
+    return result.map([entity]Record => [Entity].create([entity]Record));
+  }
 
-  async getDetailsById(agencyId: number): Promise<AgencyDetails | void> {
-    const cacheKey = `${this.cachePrefix}:${agencyId}`;
+  async update(id: string, params: Partial<TCreate[Entity]Params>): Promise<[Entity]> {
+    const setParts: string[] = [];
+    const values: any[] = [id];
+    let paramIndex = 2;
 
-    // Try cache first
-    const cachedData = await this.getCacheData<any>(cacheKey);
-    if (cachedData) {
-      return AgencyDetailMapper.fromCachedData(cachedData);
+    if (params.name !== undefined) {
+      setParts.push(`name = $${paramIndex}`);
+      values.push(params.name);
+      paramIndex++;
     }
 
-    // Fallback to database
-    const query = `
-			SELECT * FROM agencies WHERE id = ? AND is_active = 1
-		`;
-
-    const result = await this.executeMysqlQuery(query, [agencyId]);
-
-    if (result.length > 0) {
-      const agency = AgencyDetailMapper.fromMysqlRow(result[0]);
-
-      // Cache the result
-      await this.setCacheData(cacheKey, result[0], this.defaultTTL);
-
-      return agency;
+    if (params.status !== undefined) {
+      setParts.push(`status = $${paramIndex}`);
+      values.push(params.status);
+      paramIndex++;
     }
-  }
 
-  async update(agencyId: number, agency: AgencyDetails): Promise<void> {
-    // Update database
+    setParts.push(`updated_at = NOW()`);
+
     const query = `
-			UPDATE agencies
-			SET name = ?, postcode = ?, updated_at = NOW()
-			WHERE id = ?
-		`;
+      UPDATE ${this.tableName}
+      SET ${setParts.join(', ')}
+      WHERE id = $1 AND deleted_at IS NULL
+    `;
 
-    const details = agency.getDetails();
-    await this.executeMysqlQuery(query, [
-      details.name,
-      details.postcode,
-      agencyId,
-    ]);
+    await this.databaseService.update(query, values, "update[Entity]");
 
-    // Invalidate cache
-    const cacheKey = `${this.cachePrefix}:${agencyId}`;
-    await this.deleteCacheData(cacheKey);
+    const updated = await this.findById(id);
+    if (!updated) {
+      throw new Error("[Entity] not found after update");
+    }
+
+    return updated;
+  }
+
+  async delete(id: string): Promise<void> {
+    const query = `
+      UPDATE ${this.tableName}
+      SET deleted_at = NOW()
+      WHERE id = $1
+    `;
+
+    await this.databaseService.update(query, [id], "delete[Entity]");
+  }
+
+  async findByNameAndUserId(name: string, userId: string): Promise<[Entity] | null> {
+    const query = `
+      SELECT id, user_id, name, status, is_active, created_at, updated_at, deleted_at
+      FROM ${this.tableName}
+      WHERE name = $1 AND user_id = $2 AND deleted_at IS NULL
+    `;
+
+    const result = await this.databaseService.select<T[Entity]Record>(
+      query,
+      [name, userId],
+      "find[Entity]ByNameAndUserId"
+    );
+
+    return result[0] ? [Entity].create(result[0]) : null;
   }
 }
 ```
 
-### Database Migration and Index Management
-
-**Index Resolver Pattern:**
+#### External Service Pattern
 
 ```typescript
-// shared/infrastructure/repositories/indexResolverImpl.ts
-export class IndexResolverImpl {
-  private indexMappings: Map<string, string> = new Map([
-    ["agencies", "agencies-v1"],
-    ["listings", "listings-v2"],
-    ["agents", "agents-v1"],
-  ]);
+// infrastructure/externalServices/[service]Service.ts
+import { I[Service]Service } from "../../domain/interfaces/infrastructure/externalServices/[service]Service";
+import { ILoggerService } from "../../shared/core/interfaces/services/loggerService";
+import { T[Service]Params, T[Service]Result } from "../../domain/types/infrastructure/externalServices/[service]Service";
 
-  getIndexName(entity: string): string {
-    return this.indexMappings.get(entity) || entity;
-  }
-
-  updateIndexMapping(entity: string, newIndex: string): void {
-    this.indexMappings.set(entity, newIndex);
-  }
-}
-```
-
-**Database Connection Management:**
-
-```typescript
-// infrastructure/services/databaseConnectionService.ts
-export class DatabaseConnectionService {
+export class [Service]Service implements I[Service]Service {
   constructor(
-    private revBase: RevAppServiceMain<EConnectionTypes, ESType, CacheType>
-  ) {}
-
-  async testConnections(): Promise<{ [key: string]: boolean }> {
-    const results: { [key: string]: boolean } = {};
-
-    // Test MySQL connections
-    for (const connection of Object.values(EConnectionTypes)) {
-      try {
-        const dbService = this.revBase.getDbService(connection);
-        await dbService.query("SELECT 1");
-        results[`mysql_${connection}`] = true;
-      } catch (error) {
-        results[`mysql_${connection}`] = false;
-      }
+    private readonly client: [ThirdParty]Client,
+    private readonly logger: ILoggerService
+  ) {
+    // Validate environment variables when using process.env directly
+    const requiredConfig = process.env.[SERVICE]_CONFIG;
+    if (!requiredConfig || requiredConfig.trim() === "") {
+      throw new Error("[SERVICE]_CONFIG environment variable is required");
     }
-
-    // Test Elasticsearch connections
-    try {
-      const esService = this.revBase.getElasticSearchService(
-        EConnectionTypes.rev
-      );
-      await esService.ping();
-      results["elasticsearch_rev"] = true;
-    } catch (error) {
-      results["elasticsearch_rev"] = false;
-    }
-
-    // Test Redis connections
-    try {
-      const cacheService = this.revBase.getCacheService(EConnectionTypes.rev);
-      await cacheService.ping();
-      results["redis_rev"] = true;
-    } catch (error) {
-      results["redis_rev"] = false;
-    }
-
-    return results;
   }
 
-  async getConnectionHealth(): Promise<any> {
+  async performAction(params: T[Service]Params): Promise<T[Service]Result> {
+    try {
+      this.logger.info("Performing [service] action", {
+        action: params.action
+      });
+
+      const response = await this.client.performAction({
+        param1: params.param1,
+        param2: params.param2,
+      });
+
+      return this.mapResponse(response);
+    } catch (error) {
+      this.logger.error("[Service] action failed", {
+        error,
+        action: params.action
+      });
+      throw new Error("Failed to perform [service] action");
+    }
+  }
+
+  private mapResponse(response: [ThirdParty]Response): T[Service]Result {
     return {
-      timestamp: new Date().toISOString(),
-      connections: await this.testConnections(),
+      id: response.id,
+      status: response.status,
+      data: response.data,
     };
   }
 }
 ```
 
-### Best Practices for Database Management
+### 4. Presentation Layer Patterns
 
-**1. Connection Management:**
+#### Controller Pattern
 
-- Use connection pooling for MySQL
-- Implement proper error handling for connection failures
-- Monitor connection health
+```typescript
+// presentation/controllers/[feature]Controller.ts
+import { Request, Response } from "express";
+import { ILoggerService } from "../../shared/core/interfaces/services/loggerService";
+import { HTTP_STATUS_CODES, API_MESSAGES } from "../../shared/constants/constants";
+import { I[Feature]Controller } from "../../domain/interfaces/presentation/controllers/[feature]Controller";
+import { ApiResponse } from "../../shared/utils/ApiResponse";
+import { ApiError } from "../../shared/utils/ApiError";
 
-**2. Query Optimization:**
+// Import DTOs
+import {
+  [Action1][Entity]RequestDto,
+  [Action1][Entity]ResponseDto,
+} from "../../application/Dto/[feature]/[action1][Entity]";
 
-- Use prepared statements for security
-- Implement proper indexing strategies
-- Use query builders for complex queries
+// Import Use Cases
+import { [Action1][Entity]UseCase } from "../../application/usecases/[feature]/[action1][Entity]UseCase";
+import { [Action2][Entity]UseCase } from "../../application/usecases/[feature]/[action2][Entity]UseCase";
 
-**3. Data Consistency:**
+export class [Feature]Controller implements I[Feature]Controller {
+  constructor(
+    private readonly logger: ILoggerService,
+    private readonly [action1][Entity]UseCase: [Action1][Entity]UseCase,
+    private readonly [action2][Entity]UseCase: [Action2][Entity]UseCase,
+    // Additional use cases...
+  ) {}
 
-- Use transactions for multi-table operations
-- Implement eventual consistency for cross-database operations
-- Handle race conditions properly
+  public async [action1][Entity](req: Request, res: Response): Promise<void> {
+    try {
+      this.logger.info("Processing [action1][entity] request");
 
-**4. Caching Strategy:**
+      const params = [Action1][Entity]RequestDto.fromDto(req);
+      const [entity] = await this.[action1][Entity]UseCase.execute(params);
+      const response = [Action1][Entity]ResponseDto.toDto([entity]);
 
-- Cache at repository level
-- Implement cache invalidation strategies
-- Use appropriate TTL values
+      this.logger.info("[action1][entity] request completed");
+      res
+        .status(HTTP_STATUS_CODES.CREATED)
+        .json(new ApiResponse(HTTP_STATUS_CODES.CREATED, response, API_MESSAGES.CREATED));
+    } catch (error: any) {
+      this.logger.error("[action1][entity] request failed", {
+        error: error.message || "Unknown error",
+      });
 
-**5. Error Handling:**
+      res
+        .status(HTTP_STATUS_CODES.INTERNAL_SERVER_ERROR)
+        .json(
+          new ApiError(
+            HTTP_STATUS_CODES.INTERNAL_SERVER_ERROR,
+            error.message || API_MESSAGES.CREATION_FAILED,
+            error.errors || [],
+            error.stack || ""
+          )
+        );
+    }
+  }
 
-- Implement retry logic for transient failures
-- Log database errors appropriately
-- Provide meaningful error messages
+  public async [action2][Entity](req: Request, res: Response): Promise<void> {
+    try {
+      this.logger.info("Processing [action2][entity] request");
 
-**6. Security:**
+      const params = [Action2][Entity]RequestDto.fromDto(req);
+      const [entity] = await this.[action2][Entity]UseCase.execute(params);
+      const response = [Action2][Entity]ResponseDto.toDto([entity]);
 
-- Use parameterized queries
-- Implement proper access controls
-- Encrypt sensitive data
+      this.logger.info("[action2][entity] request completed");
+      res
+        .status(HTTP_STATUS_CODES.OK)
+        .json(new ApiResponse(HTTP_STATUS_CODES.OK, response, API_MESSAGES.SUCCESS));
+    } catch (error: any) {
+      this.logger.error("[action2][entity] request failed", {
+        error: error.message || "Unknown error",
+      });
+
+      res
+        .status(HTTP_STATUS_CODES.INTERNAL_SERVER_ERROR)
+        .json(
+          new ApiError(
+            HTTP_STATUS_CODES.INTERNAL_SERVER_ERROR,
+            error.message || API_MESSAGES.FAILED_TO_GET_DATA,
+            error.errors || [],
+            error.stack || ""
+          )
+        );
+    }
+  }
+}
+```
+
+#### Route Pattern
+
+```typescript
+// presentation/routes/[feature]Routes.ts
+import { Router } from "express";
+import { createValidator } from "express-joi-validation";
+import { [Feature]ControllerFactory } from "../factories/[feature]ControllerFactory";
+import { ILoggerService } from "../../shared/core/interfaces/services/loggerService";
+import { I[Feature]Controller } from "../../domain/interfaces/presentation/controllers/[feature]Controller";
+import { [feature]ValidationSchemas } from "../validation/[feature]ValidationSchemas";
+import { IDatabaseService } from "../../shared/core/interfaces/services/databaseService";
+
+export class [Feature]Routes {
+  private router = Router();
+  private [feature]Controller!: I[Feature]Controller;
+
+  constructor(
+    private logger: ILoggerService,
+    private databaseService: IDatabaseService,
+    // Additional services as needed
+    private [optional]Service?: I[Optional]Service
+  ) {
+    this.[feature]Controller = [Feature]ControllerFactory.create(
+      this.logger,
+      this.databaseService,
+      this.[optional]Service
+    );
+    this.setupRoutes();
+  }
+
+  private setupRoutes(): void {
+    const validator = createValidator({ passError: true });
+
+    // POST /[feature] - Create new [entity]
+    this.router.post(
+      "/",
+      validator.body([feature]ValidationSchemas.[action1][Entity]),
+      this.[feature]Controller.[action1][Entity].bind(this.[feature]Controller)
+    );
+
+    // GET /[feature]/:id - Get [entity] by ID
+    this.router.get(
+      "/:id",
+      validator.params([feature]ValidationSchemas.[action2][Entity]),
+      this.[feature]Controller.[action2][Entity].bind(this.[feature]Controller)
+    );
+
+    // PUT /[feature]/:id - Update [entity]
+    this.router.put(
+      "/:id",
+      validator.params([feature]ValidationSchemas.[action3][Entity]Params),
+      validator.body([feature]ValidationSchemas.[action3][Entity]Body),
+      this.[feature]Controller.[action3][Entity].bind(this.[feature]Controller)
+    );
+
+    // DELETE /[feature]/:id - Delete [entity]
+    this.router.delete(
+      "/:id",
+      validator.params([feature]ValidationSchemas.[action4][Entity]),
+      this.[feature]Controller.[action4][Entity].bind(this.[feature]Controller)
+    );
+
+    // GET /[feature] - Get all [entity] for user
+    this.router.get(
+      "/",
+      this.[feature]Controller.[action5][Entity].bind(this.[feature]Controller)
+    );
+  }
+
+  public getRouter(): Router {
+    return this.router;
+  }
+}
+```
+
+#### Validation Pattern
+
+```typescript
+// presentation/validation/[feature]ValidationSchemas.ts
+import Joi from "joi";
+import { [Status] } from "../../domain/enum/[status]";
+
+export const [feature]ValidationSchemas = {
+  [action1][Entity]: Joi.object({
+    name: Joi.string().min(1).max(255).required().messages({
+      "any.required": "Name is required",
+      "string.min": "Name must be at least 1 character",
+      "string.max": "Name cannot exceed 255 characters",
+    }),
+    status: Joi.string()
+      .valid([Status].[VALUE1], [Status].[VALUE2], [Status].[VALUE3])
+      .required()
+      .messages({
+        "any.required": "Status is required",
+        "any.only": "Status must be one of: {#valids}",
+      }),
+    optionalField: Joi.string().optional().max(500).messages({
+      "string.max": "Optional field cannot exceed 500 characters",
+    }),
+  }),
+
+  [action2][Entity]: Joi.object({
+    id: Joi.string().uuid().required().messages({
+      "any.required": "[Entity] ID is required",
+      "string.uuid": "[Entity] ID must be a valid UUID",
+    }),
+  }),
+
+  [action3][Entity]Params: Joi.object({
+    id: Joi.string().uuid().required().messages({
+      "any.required": "[Entity] ID is required",
+      "string.uuid": "[Entity] ID must be a valid UUID",
+    }),
+  }),
+
+  [action3][Entity]Body: Joi.object({
+    name: Joi.string().min(1).max(255).optional().messages({
+      "string.min": "Name must be at least 1 character",
+      "string.max": "Name cannot exceed 255 characters",
+    }),
+    status: Joi.string()
+      .valid([Status].[VALUE1], [Status].[VALUE2], [Status].[VALUE3])
+      .optional()
+      .messages({
+        "any.only": "Status must be one of: {#valids}",
+      }),
+  }),
+
+  [action4][Entity]: Joi.object({
+    id: Joi.string().uuid().required().messages({
+      "any.required": "[Entity] ID is required",
+      "string.uuid": "[Entity] ID must be a valid UUID",
+    }),
+  }),
+};
+```
+
+#### Factory Pattern
+
+```typescript
+// presentation/factories/[feature]ControllerFactory.ts
+import { ILoggerService } from "../../shared/core/interfaces/services/loggerService";
+import { IDatabaseService } from "../../shared/core/interfaces/services/databaseService";
+import { I[Feature]Controller } from "../../domain/interfaces/presentation/controllers/[feature]Controller";
+
+// Repository implementations
+import { [Entity]RepoImpl } from "../../infrastructure/repositories/[entity]RepoImpl";
+
+// Service factories
+import { [Service]ServiceFactory } from "../../infrastructure/factories/[service]ServiceFactory";
+
+// Use case implementations
+import { [Action1][Entity]UseCase } from "../../application/usecases/[feature]/[action1][Entity]UseCase";
+import { [Action2][Entity]UseCase } from "../../application/usecases/[feature]/[action2][Entity]UseCase";
+
+// Controller implementation
+import { [Feature]Controller } from "../controllers/[feature]Controller";
+
+export class [Feature]ControllerFactory {
+  static create(
+    logger: ILoggerService,
+    databaseService: IDatabaseService,
+    [optional]Service?: I[Optional]Service
+  ): I[Feature]Controller {
+    // 1. Create repositories
+    const [entity]Repository = new [Entity]RepoImpl(databaseService);
+
+    // 2. Create services via factories
+    const [service]Service = [Service]ServiceFactory.create(
+      databaseService,
+      logger
+    );
+
+    // 3. Create use cases with dependency injection
+    const [action1][Entity]UseCase = new [Action1][Entity]UseCase(
+      [entity]Repository,
+      logger,
+      [service]Service
+    );
+
+    const [action2][Entity]UseCase = new [Action2][Entity]UseCase(
+      [entity]Repository,
+      logger
+    );
+
+    // Additional use cases...
+
+    // 4. Return controller with all use cases
+    return new [Feature]Controller(
+      logger,
+      [action1][Entity]UseCase,
+      [action2][Entity]UseCase,
+      // Additional use cases...
+    );
+  }
+}
+```
+
+---
+
+## Development Workflow
+
+### Step-by-Step Implementation Process
+
+#### 1. **Define Domain Contracts** (Always First)
+
+```bash
+# Create domain structure
+src/domain/
+├── entities/[feature]/[entity].ts
+├── enum/[enumName].ts
+├── interfaces/
+│   ├── application/usecases/[feature]/[action][Entity]UseCase.ts
+│   ├── infrastructure/repositories/[entity]Repository.ts
+│   └── presentation/controllers/[feature]Controller.ts
+└── types/
+    ├── application/usecases/[feature]/[action][Entity].ts
+    └── infrastructure/repositories/[entity]Repository.ts
+```
+
+**Implementation Order:**
+
+1. Create enums in `domain/enum/`
+2. Define entity with Props interface and validation
+3. Create repository interface in `domain/interfaces/infrastructure/repositories/`
+4. Define types for database records in `domain/types/infrastructure/repositories/`
+5. Create use case interfaces in `domain/interfaces/application/usecases/`
+6. Define use case parameter types in `domain/types/application/usecases/`
+
+#### 2. **Design Application Layer**
+
+```bash
+# Create application structure
+src/application/
+├── Dto/[feature]/
+│   ├── [action1][Entity].ts
+│   └── [action2][Entity].ts
+├── usecases/[feature]/
+│   ├── [action1][Entity]UseCase.ts
+│   └── [action2][Entity]UseCase.ts
+└── services/[feature]/
+    └── [service]Service.ts
+```
+
+**Implementation Order:**
+
+1. Create request/response DTOs in `application/Dto/[feature]/`
+2. Implement use cases with dependency injection
+3. Add application services for complex business logic
+4. Create mappers if transformation logic becomes repetitive
+
+#### 3. **Implement Infrastructure Layer**
+
+```bash
+# Create infrastructure structure
+src/infrastructure/
+├── repositories/[entity]RepoImpl.ts
+├── externalServices/[service]Service.ts
+└── factories/[service]ServiceFactory.ts
+```
+
+**Implementation Order:**
+
+1. Implement repository with database operations
+2. Create external service wrappers
+3. Build factories for complex service construction
+4. Add database migrations if needed
+
+#### 4. **Wire Presentation Layer**
+
+```bash
+# Create presentation structure
+src/presentation/
+├── controllers/[feature]Controller.ts
+├── routes/[feature]Routes.ts
+├── validation/[feature]ValidationSchemas.ts
+└── factories/[feature]ControllerFactory.ts
+```
+
+**Implementation Order:**
+
+1. Create Joi validation schemas
+2. Implement controller with multiple use case injection
+3. Create controller factory for dependency wiring
+4. Define route class with validation middleware
+5. Wire routes in main application
+
+#### 5. **Integration & Testing**
+
+1. Update main route manager to include new routes
+2. Test API endpoints end-to-end
+3. Add error handling and logging
+4. Write unit tests for use cases
+5. Add integration tests for repositories
+
+---
+
+## Code Standards
+
+### 1. **File Naming Conventions**
+
+- **Entities**: `[entity].ts` (e.g., `user.ts`, `project.ts`)
+- **Interfaces**: `[entity]Repository.ts`, `[action][Entity]UseCase.ts`
+- **Implementations**: `[entity]RepoImpl.ts`, `[action][Entity]UseCase.ts`
+- **Controllers**: `[feature]Controller.ts`
+- **Routes**: `[feature]Routes.ts`
+- **DTOs**: `[action][Entity].ts`
+- **Validation**: `[feature]ValidationSchemas.ts`
+
+### 2. **Import Rules**
+
+```typescript
+// ✅ CORRECT - Relative imports for internal code
+import { User } from "../../domain/entities/auth/user";
+import { IUserRepository } from "../../domain/interfaces/infrastructure/repositories/userRepository";
+
+// ✅ CORRECT - Absolute imports for node modules only
+import express from "express";
+import { v4 as uuidv4 } from "uuid";
+
+// ❌ WRONG - Never import concrete implementations across layers
+import { UserRepoImpl } from "../../infrastructure/repositories/userRepoImpl";
+
+// ❌ WRONG - Never import from higher layers
+import { UserController } from "../../presentation/controllers/userController";
+```
+
+### 3. **Dependency Injection Rules**
+
+```typescript
+// ✅ CORRECT - Inject interfaces
+constructor(
+  private readonly userRepository: IUserRepository,
+  private readonly logger: ILoggerService
+) {}
+
+// ❌ WRONG - Never inject concrete classes
+constructor(
+  private readonly userRepository: UserRepoImpl,
+  private readonly logger: LoggerService
+) {}
+```
+
+### 4. **Error Handling Standards**
+
+```typescript
+// ✅ CORRECT - Use case error handling
+async execute(params: CreateUserRequestDto): Promise<User> {
+  try {
+    this.logger.info("Creating user", { email: params.email });
+
+    // Business logic here
+
+    return user;
+  } catch (error) {
+    this.logger.error("Failed to create user", {
+      error,
+      email: params.email
+    });
+    throw error; // Always rethrow
+  }
+}
+
+// ✅ CORRECT - Controller error handling
+public async createUser(req: Request, res: Response): Promise<void> {
+  try {
+    const params = CreateUserRequestDto.fromDto(req);
+    const user = await this.createUserUseCase.execute(params);
+    const response = CreateUserResponseDto.toDto(user);
+
+    res.status(HTTP_STATUS_CODES.CREATED)
+       .json(new ApiResponse(HTTP_STATUS_CODES.CREATED, response, API_MESSAGES.CREATED));
+  } catch (error: any) {
+    this.logger.error("Create user request failed", { error: error.message });
+
+    res.status(HTTP_STATUS_CODES.INTERNAL_SERVER_ERROR)
+       .json(new ApiError(HTTP_STATUS_CODES.INTERNAL_SERVER_ERROR, error.message));
+  }
+}
+```
+
+### 5. **Logging Standards**
+
+```typescript
+// ✅ CORRECT - Structured logging with context
+this.logger.info("Creating user", {
+  email: params.email,
+  provider: params.provider,
+});
+
+this.logger.error("User creation failed", {
+  error: error.message,
+  email: params.email,
+  stack: error.stack,
+});
+
+// ❌ WRONG - Logging sensitive data
+this.logger.info("Creating user", {
+  password: params.password, // Never log passwords
+  token: params.token, // Never log tokens
+});
+```
+
+---
+
+```bash
+# Database Configuration
+DATABASE_HOST=localhost
+DATABASE_PORT=5432
+DATABASE_NAME=your_database
+DATABASE_USERNAME=postgres
+DATABASE_PASSWORD=your_password
+
+# Server Configuration
+PORT=3000
+NODE_ENV=development
+
+# Authentication
+JWT_SECRET=your-jwt-secret
+JWT_EXPIRES_IN=24h
+
+# External Services
+AWS_REGION=us-east-1
+AWS_ACCESS_KEY_ID=your-access-key
+AWS_SECRET_ACCESS_KEY=your-secret-key
+S3_BUCKET=your-bucket-name
+
+# Third-party APIs
+OPENAI_API_KEY=your-openai-key
+SLACK_BOT_TOKEN=your-slack-token
+```
+
+---
 
 ## Examples
 
-### Complete Module Example: Find Agent
+### Complete Feature Implementation Example
 
-This module demonstrates all clean architecture patterns:
+Let's implement a **User Management** feature following the complete workflow:
 
-**Domain Entity:**
+#### 1. Domain Layer Implementation
+
+**Enum:**
 
 ```typescript
-// domain/entities/agencyDetails.ts
-export class AgencyDetails {
-  private props: AgencyDetailsProps;
+// src/domain/enum/userStatus.ts
+export enum UserStatus {
+  ACTIVE = "active",
+  INACTIVE = "inactive",
+  SUSPENDED = "suspended",
+  DELETED = "deleted",
+}
+```
 
-  static create(details: AgencyDetailsProps) {
-    const agencyDetails = new AgencyDetails();
-    agencyDetails.props = details;
-    return agencyDetails;
+**Entity:**
+
+```typescript
+// src/domain/entities/auth/user.ts
+import { TUserRecord } from "../../types/infrastructure/repositories/userRepository";
+import { UserStatus } from "../../enum/userStatus";
+
+interface Props {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  status: UserStatus;
+  createdAt: Date;
+  updatedAt: Date;
+  isVerified?: boolean;
+  deletedAt?: Date | null;
+}
+
+export class User {
+  private readonly _id: string;
+  private readonly _email: string;
+  private readonly _firstName: string;
+  private readonly _lastName: string;
+  private readonly _status: UserStatus;
+  private readonly _createdAt: Date;
+  private readonly _updatedAt: Date;
+  private _isVerified: boolean;
+  private _deletedAt: Date | null;
+
+  constructor({
+    id,
+    email,
+    firstName,
+    lastName,
+    status,
+    createdAt,
+    updatedAt,
+    isVerified = false,
+    deletedAt = null,
+  }: Props) {
+    this._id = id;
+    this._email = email;
+    this._firstName = firstName;
+    this._lastName = lastName;
+    this._status = status;
+    this._createdAt = createdAt;
+    this._updatedAt = updatedAt;
+    this._isVerified = isVerified;
+    this._deletedAt = deletedAt;
+
+    this.validate();
   }
 
-  isHiddenInFindAnAgent() {
-    return this.props.hideInFindAnAgent;
+  static create(params: TUserRecord): User {
+    return new User({
+      id: params.id,
+      email: params.email,
+      firstName: params.first_name,
+      lastName: params.last_name,
+      status: params.status as UserStatus,
+      createdAt: params.created_at,
+      updatedAt: params.updated_at,
+      isVerified: params.is_verified,
+      deletedAt: params.deleted_at,
+    });
   }
 
-  getId() {
-    return this.props.id;
+  // Getters
+  get id(): string {
+    return this._id;
+  }
+  get email(): string {
+    return this._email;
+  }
+  get firstName(): string {
+    return this._firstName;
+  }
+  get lastName(): string {
+    return this._lastName;
+  }
+  get status(): UserStatus {
+    return this._status;
+  }
+  get createdAt(): Date {
+    return this._createdAt;
+  }
+  get updatedAt(): Date {
+    return this._updatedAt;
+  }
+  get isVerified(): boolean {
+    return this._isVerified;
+  }
+  get deletedAt(): Date | null {
+    return this._deletedAt;
+  }
+
+  // Business methods
+  get fullName(): string {
+    return `${this._firstName} ${this._lastName}`;
+  }
+
+  public isActive(): boolean {
+    return this._status === UserStatus.ACTIVE && !this._deletedAt;
+  }
+
+  public canBeDeleted(): boolean {
+    return this._status !== UserStatus.DELETED && !this._deletedAt;
+  }
+
+  public verify(): User {
+    return new User({
+      ...this.toDomainProps(),
+      isVerified: true,
+      updatedAt: new Date(),
+    });
+  }
+
+  private validate(): void {
+    if (!this._id) {
+      throw new Error("User id is required");
+    }
+    if (!this._email || !this.isValidEmail(this._email)) {
+      throw new Error("Valid email is required");
+    }
+    if (!this._firstName || this._firstName.trim().length === 0) {
+      throw new Error("First name is required");
+    }
+    if (!this._lastName || this._lastName.trim().length === 0) {
+      throw new Error("Last name is required");
+    }
+    if (!Object.values(UserStatus).includes(this._status)) {
+      throw new Error("Valid user status is required");
+    }
+  }
+
+  private isValidEmail(email: string): boolean {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  }
+
+  private toDomainProps(): Props {
+    return {
+      id: this._id,
+      email: this._email,
+      firstName: this._firstName,
+      lastName: this._lastName,
+      status: this._status,
+      createdAt: this._createdAt,
+      updatedAt: this._updatedAt,
+      isVerified: this._isVerified,
+      deletedAt: this._deletedAt,
+    };
   }
 }
 ```
@@ -1546,61 +1286,530 @@ export class AgencyDetails {
 **Repository Interface:**
 
 ```typescript
-// repositories/agencyRepository.ts
-export interface AgencyRepo extends BaseRepo {
-  getDetailsById(agencyId: number): Promise<AgencyDetails | void>;
-  getTopPerformingSuburbsByAgency(
-    agencyId: number
-  ): Promise<TopPerformingSuburbByAgencyDto[]>;
+// src/domain/interfaces/infrastructure/repositories/userRepository.ts
+import { User } from "../../../entities/auth/user";
+import {
+  TCreateUserParams,
+  TUserRecord,
+} from "../../../types/infrastructure/repositories/userRepository";
+
+export interface IUserRepository {
+  create(params: TCreateUserParams): Promise<User>;
+  findById(id: string): Promise<User | null>;
+  findByEmail(email: string): Promise<User | null>;
+  findAll(): Promise<User[]>;
+  update(id: string, params: Partial<TCreateUserParams>): Promise<User>;
+  delete(id: string): Promise<void>;
+  verifyUser(id: string): Promise<User>;
+}
+```
+
+**Types:**
+
+```typescript
+// src/domain/types/infrastructure/repositories/userRepository.ts
+import { UserStatus } from "../../../enum/userStatus";
+
+export type TUserRecord = {
+  id: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  status: UserStatus;
+  is_verified: boolean;
+  created_at: Date;
+  updated_at: Date;
+  deleted_at: Date | null;
+};
+
+export type TCreateUserParams = {
+  email: string;
+  firstName: string;
+  lastName: string;
+  status: UserStatus;
+};
+
+export type TUpdateUserParams = {
+  firstName?: string;
+  lastName?: string;
+  status?: UserStatus;
+};
+```
+
+#### 2. Application Layer Implementation
+
+**DTOs:**
+
+```typescript
+// src/application/Dto/auth/createUser.ts
+import { UserStatus } from "../../../domain/enum/userStatus";
+import { User } from "../../../domain/entities/auth/user";
+
+export class CreateUserRequestDto {
+  constructor(
+    public email: string,
+    public firstName: string,
+    public lastName: string,
+    public status: UserStatus = UserStatus.ACTIVE
+  ) {}
+
+  static fromDto(req: any): CreateUserRequestDto {
+    return new CreateUserRequestDto(
+      req.body.email,
+      req.body.firstName,
+      req.body.lastName,
+      req.body.status || UserStatus.ACTIVE
+    );
+  }
+}
+
+export class CreateUserResponseDto {
+  constructor(
+    public id: string,
+    public email: string,
+    public firstName: string,
+    public lastName: string,
+    public status: string,
+    public isVerified: boolean,
+    public createdAt: string
+  ) {}
+
+  static toDto(user: User): CreateUserResponseDto {
+    return new CreateUserResponseDto(
+      user.id,
+      user.email,
+      user.firstName,
+      user.lastName,
+      user.status,
+      user.isVerified,
+      user.createdAt.toISOString()
+    );
+  }
 }
 ```
 
 **Use Case:**
 
 ```typescript
-// application/useCases/getAgencyProfile/getAgencyProfile.ts
-export class GetAgencyProfile {
+// src/application/usecases/auth/createUserUseCase.ts
+import { IUserRepository } from "../../../domain/interfaces/infrastructure/repositories/userRepository";
+import { ILoggerService } from "../../../shared/core/interfaces/services/loggerService";
+import { CreateUserRequestDto } from "../../Dto/auth/createUser";
+import { User } from "../../../domain/entities/auth/user";
+
+export class CreateUserUseCase {
   constructor(
-    private agencyRepo: AgencyRepo,
-    private agentRepo: AgentRepo,
-    private listingRepo: ListingRepo,
-    private staticMapImageService: StaticMapImageService
+    private readonly userRepository: IUserRepository,
+    private readonly logger: ILoggerService
   ) {}
 
-  async execute(
-    request: GetAgencyProfileRequestDto
-  ): Promise<GetAgencyProfileResponseDto> {
-    const agency = await this.agencyRepo.getDetailsById(request.id);
+  async execute(params: CreateUserRequestDto): Promise<User> {
+    try {
+      this.logger.info("Creating user", { email: params.email });
 
-    if (!agency || agency.isHiddenInFindAnAgent()) {
-      throw new Error("Agency not found or hidden");
+      // Business validation
+      const existingUser = await this.userRepository.findByEmail(params.email);
+      if (existingUser) {
+        this.logger.error("User already exists", { email: params.email });
+        throw new Error("User with this email already exists");
+      }
+
+      // Create user
+      const user = await this.userRepository.create({
+        email: params.email,
+        firstName: params.firstName,
+        lastName: params.lastName,
+        status: params.status,
+      });
+
+      this.logger.info("User created successfully", {
+        userId: user.id,
+        email: user.email,
+      });
+
+      return user;
+    } catch (error) {
+      this.logger.error("Failed to create user", {
+        error,
+        email: params.email,
+      });
+      throw error;
     }
-
-    // Build response with business logic
-    return this.buildResponse(agency, request);
   }
 }
 ```
+
+#### 3. Infrastructure Layer Implementation
+
+**Repository:**
+
+```typescript
+// src/infrastructure/repositories/userRepoImpl.ts
+import { IUserRepository } from "../../domain/interfaces/infrastructure/repositories/userRepository";
+import { IDatabaseService } from "../../shared/core/interfaces/services/databaseService";
+import { User } from "../../domain/entities/auth/user";
+import {
+  TCreateUserParams,
+  TUserRecord,
+  TUpdateUserParams,
+} from "../../domain/types/infrastructure/repositories/userRepository";
+import { IdGeneratorService } from "../externalServices/idGeneratorService";
+
+export class UserRepoImpl implements IUserRepository {
+  private readonly tableName = "users";
+
+  constructor(private readonly databaseService: IDatabaseService) {}
+
+  async create(params: TCreateUserParams): Promise<User> {
+    const user = User.create({
+      id: IdGeneratorService.getInstance().generateUUID(),
+      email: params.email,
+      first_name: params.firstName,
+      last_name: params.lastName,
+      status: params.status,
+      is_verified: false,
+      created_at: new Date(),
+      updated_at: new Date(),
+      deleted_at: null,
+    });
+
+    const query = `
+      INSERT INTO ${this.tableName} (
+        id, email, first_name, last_name, status, is_verified, created_at, updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    `;
+
+    const values = [
+      user.id,
+      user.email,
+      user.firstName,
+      user.lastName,
+      user.status,
+      user.isVerified,
+      user.createdAt,
+      user.updatedAt,
+    ];
+
+    await this.databaseService.insert(query, values, "createUser");
+    return user;
+  }
+
+  async findById(id: string): Promise<User | null> {
+    const query = `
+      SELECT id, email, first_name, last_name, status, is_verified, created_at, updated_at, deleted_at
+      FROM ${this.tableName}
+      WHERE id = $1 AND deleted_at IS NULL
+    `;
+
+    const result = await this.databaseService.select<TUserRecord>(
+      query,
+      [id],
+      "findUserById"
+    );
+
+    return result[0] ? User.create(result[0]) : null;
+  }
+
+  async findByEmail(email: string): Promise<User | null> {
+    const query = `
+      SELECT id, email, first_name, last_name, status, is_verified, created_at, updated_at, deleted_at
+      FROM ${this.tableName}
+      WHERE email = $1 AND deleted_at IS NULL
+    `;
+
+    const result = await this.databaseService.select<TUserRecord>(
+      query,
+      [email],
+      "findUserByEmail"
+    );
+
+    return result[0] ? User.create(result[0]) : null;
+  }
+
+  async findAll(): Promise<User[]> {
+    const query = `
+      SELECT id, email, first_name, last_name, status, is_verified, created_at, updated_at, deleted_at
+      FROM ${this.tableName}
+      WHERE deleted_at IS NULL
+      ORDER BY created_at DESC
+    `;
+
+    const result = await this.databaseService.select<TUserRecord>(
+      query,
+      [],
+      "findAllUsers"
+    );
+
+    return result.map((userRecord) => User.create(userRecord));
+  }
+
+  async update(id: string, params: TUpdateUserParams): Promise<User> {
+    const setParts: string[] = [];
+    const values: any[] = [id];
+    let paramIndex = 2;
+
+    if (params.firstName !== undefined) {
+      setParts.push(`first_name = $${paramIndex}`);
+      values.push(params.firstName);
+      paramIndex++;
+    }
+
+    if (params.lastName !== undefined) {
+      setParts.push(`last_name = $${paramIndex}`);
+      values.push(params.lastName);
+      paramIndex++;
+    }
+
+    if (params.status !== undefined) {
+      setParts.push(`status = $${paramIndex}`);
+      values.push(params.status);
+      paramIndex++;
+    }
+
+    setParts.push(`updated_at = NOW()`);
+
+    const query = `
+      UPDATE ${this.tableName}
+      SET ${setParts.join(", ")}
+      WHERE id = $1 AND deleted_at IS NULL
+    `;
+
+    await this.databaseService.update(query, values, "updateUser");
+
+    const updated = await this.findById(id);
+    if (!updated) {
+      throw new Error("User not found after update");
+    }
+
+    return updated;
+  }
+
+  async delete(id: string): Promise<void> {
+    const query = `
+      UPDATE ${this.tableName}
+      SET deleted_at = NOW()
+      WHERE id = $1
+    `;
+
+    await this.databaseService.update(query, [id], "deleteUser");
+  }
+
+  async verifyUser(id: string): Promise<User> {
+    const query = `
+      UPDATE ${this.tableName}
+      SET is_verified = true, updated_at = NOW()
+      WHERE id = $1 AND deleted_at IS NULL
+    `;
+
+    await this.databaseService.update(query, [id], "verifyUser");
+
+    const verified = await this.findById(id);
+    if (!verified) {
+      throw new Error("User not found after verification");
+    }
+
+    return verified;
+  }
+}
+```
+
+#### 4. Presentation Layer Implementation
 
 **Controller:**
 
 ```typescript
-// presentation/controllers/controller.ts
-export class Controller {
-  static async getAgencyProfile(req, res, next) {
-    const { useCase, loggerService } = await GetAgencyProfileFactory.create(
-      req
-    );
+// src/presentation/controllers/authController.ts
+import { Request, Response } from "express";
+import { ILoggerService } from "../../shared/core/interfaces/services/loggerService";
+import {
+  HTTP_STATUS_CODES,
+  API_MESSAGES,
+} from "../../shared/constants/constants";
+import { IAuthController } from "../../domain/interfaces/presentation/controllers/authController";
+import { ApiResponse } from "../../shared/utils/ApiResponse";
+import { ApiError } from "../../shared/utils/ApiError";
 
+import {
+  CreateUserRequestDto,
+  CreateUserResponseDto,
+} from "../../application/Dto/auth/createUser";
+
+import { CreateUserUseCase } from "../../application/usecases/auth/createUserUseCase";
+
+export class AuthController implements IAuthController {
+  constructor(
+    private readonly logger: ILoggerService,
+    private readonly createUserUseCase: CreateUserUseCase
+  ) {}
+
+  public async createUser(req: Request, res: Response): Promise<void> {
     try {
-      const response = await useCase.execute(req.query);
-      res.send({ success: true, data: response });
-    } catch (error) {
-      loggerService.errorLog({ data: error, msg: "Get Agency Profile" });
-      return next(error);
+      this.logger.info("Processing createUser request");
+
+      const params = CreateUserRequestDto.fromDto(req);
+      const user = await this.createUserUseCase.execute(params);
+      const response = CreateUserResponseDto.toDto(user);
+
+      this.logger.info("createUser request completed");
+      res
+        .status(HTTP_STATUS_CODES.CREATED)
+        .json(
+          new ApiResponse(
+            HTTP_STATUS_CODES.CREATED,
+            response,
+            API_MESSAGES.CREATED
+          )
+        );
+    } catch (error: any) {
+      this.logger.error("createUser request failed", {
+        error: error.message || "Unknown error",
+      });
+
+      res
+        .status(HTTP_STATUS_CODES.INTERNAL_SERVER_ERROR)
+        .json(
+          new ApiError(
+            HTTP_STATUS_CODES.INTERNAL_SERVER_ERROR,
+            error.message || API_MESSAGES.CREATION_FAILED,
+            error.errors || [],
+            error.stack || ""
+          )
+        );
     }
   }
 }
 ```
 
-This guide provides a comprehensive foundation for implementing clean architecture in Node.js/TypeScript projects. Use this as a reference when creating new modules or refactoring existing code to follow clean architecture principles.
+**Routes:**
+
+```typescript
+// src/presentation/routes/authRoutes.ts
+import { Router } from "express";
+import { createValidator } from "express-joi-validation";
+import { AuthControllerFactory } from "../factories/authControllerFactory";
+import { ILoggerService } from "../../shared/core/interfaces/services/loggerService";
+import { IAuthController } from "../../domain/interfaces/presentation/controllers/authController";
+import { authValidationSchemas } from "../validation/authValidationSchemas";
+import { IDatabaseService } from "../../shared/core/interfaces/services/databaseService";
+
+export class AuthRoutes {
+  private router = Router();
+  private authController!: IAuthController;
+
+  constructor(
+    private logger: ILoggerService,
+    private databaseService: IDatabaseService
+  ) {
+    this.authController = AuthControllerFactory.create(
+      this.logger,
+      this.databaseService
+    );
+    this.setupRoutes();
+  }
+
+  private setupRoutes(): void {
+    const validator = createValidator({ passError: true });
+
+    // POST /auth/users - Create new user
+    this.router.post(
+      "/users",
+      validator.body(authValidationSchemas.createUser),
+      this.authController.createUser.bind(this.authController)
+    );
+  }
+
+  public getRouter(): Router {
+    return this.router;
+  }
+}
+```
+
+**Validation:**
+
+```typescript
+// src/presentation/validation/authValidationSchemas.ts
+import Joi from "joi";
+import { UserStatus } from "../../domain/enum/userStatus";
+
+export const authValidationSchemas = {
+  createUser: Joi.object({
+    email: Joi.string().email().required().messages({
+      "any.required": "Email is required",
+      "string.email": "Email must be valid",
+    }),
+    firstName: Joi.string().min(1).max(100).required().messages({
+      "any.required": "First name is required",
+      "string.min": "First name must be at least 1 character",
+      "string.max": "First name cannot exceed 100 characters",
+    }),
+    lastName: Joi.string().min(1).max(100).required().messages({
+      "any.required": "Last name is required",
+      "string.min": "Last name must be at least 1 character",
+      "string.max": "Last name cannot exceed 100 characters",
+    }),
+    status: Joi.string()
+      .valid(UserStatus.ACTIVE, UserStatus.INACTIVE, UserStatus.SUSPENDED)
+      .optional()
+      .default(UserStatus.ACTIVE)
+      .messages({
+        "any.only": "Status must be one of: active, inactive, suspended",
+      }),
+  }),
+};
+```
+
+**Factory:**
+
+```typescript
+// src/presentation/factories/authControllerFactory.ts
+import { ILoggerService } from "../../shared/core/interfaces/services/loggerService";
+import { IDatabaseService } from "../../shared/core/interfaces/services/databaseService";
+import { IAuthController } from "../../domain/interfaces/presentation/controllers/authController";
+
+import { UserRepoImpl } from "../../infrastructure/repositories/userRepoImpl";
+import { CreateUserUseCase } from "../../application/usecases/auth/createUserUseCase";
+import { AuthController } from "../controllers/authController";
+
+export class AuthControllerFactory {
+  static create(
+    logger: ILoggerService,
+    databaseService: IDatabaseService
+  ): IAuthController {
+    // 1. Create repositories
+    const userRepository = new UserRepoImpl(databaseService);
+
+    // 2. Create use cases
+    const createUserUseCase = new CreateUserUseCase(userRepository, logger);
+
+    // 3. Return controller
+    return new AuthController(logger, createUserUseCase);
+  }
+}
+```
+
+This complete example demonstrates the full implementation workflow from domain to presentation layer, following all the established patterns and conventions.
+
+---
+
+## Conclusion
+
+This Clean Architecture guide provides a comprehensive framework for building maintainable, testable, and scalable TypeScript applications. By following these patterns and conventions, teams can ensure consistency across projects and reduce development time through reusable architectural decisions.
+
+### Key Benefits:
+
+- **Maintainability**: Clear separation of concerns makes code easy to modify
+- **Testability**: Interface-based design enables easy mocking and unit testing
+- **Scalability**: Modular structure supports growth and feature additions
+- **Consistency**: Standardized patterns reduce cognitive load and onboarding time
+- **Flexibility**: Dependency inversion allows easy swapping of implementations
+
+### Next Steps:
+
+1. Set up the directory structure according to the patterns
+2. Implement shared services and utilities first
+3. Start with a simple feature following the complete workflow
+4. Gradually add complexity as the team becomes comfortable with the patterns
+5. Establish code review processes to ensure adherence to the standards
+
+Remember: **Always start with the domain layer and work outward**. This ensures that business logic drives the architecture, not technical concerns.
+/

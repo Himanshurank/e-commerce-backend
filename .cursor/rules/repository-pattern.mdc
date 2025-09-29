@@ -1,0 +1,85 @@
+---
+globs: src/infrastructure/repositories/**/*.ts
+---
+
+# Repository Pattern
+
+Repositories implement data persistence following domain interfaces.
+
+## Repository Implementation Template
+
+```typescript
+import { I[Entity]Repository } from "../../domain/interfaces/infrastructure/repositories/[entity]Repository";
+import { IDatabaseService } from "../../shared/core/interfaces/services/databaseService";
+import { [Entity] } from "../../domain/entities/[feature]/[entity]";
+import {
+  TCreate[Entity]Params,
+  T[Entity]Record
+} from "../../domain/types/infrastructure/repositories/[entity]Repository";
+import { IdGeneratorService } from "../externalServices/idGeneratorService";
+
+export class [Entity]RepoImpl implements I[Entity]Repository {
+  private readonly tableName = "[table_name]";
+
+  constructor(private readonly databaseService: IDatabaseService) {}
+
+  async create(params: TCreate[Entity]Params): Promise<[Entity]> {
+    const [entity] = [Entity].create({
+      id: IdGeneratorService.getInstance().generateUUID(),
+      user_id: params.userId,
+      name: params.name,
+      status: params.status,
+      is_active: true,
+      created_at: new Date(),
+      updated_at: new Date(),
+      deleted_at: null,
+    });
+
+    const query = `
+      INSERT INTO ${this.tableName} (
+        id, user_id, name, status, is_active, created_at, updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+    `;
+
+    const values = [
+      [entity].id,
+      [entity].userId,
+      [entity].name,
+      [entity].status,
+      [entity].isActive,
+      [entity].createdAt,
+      [entity].updatedAt,
+    ];
+
+    await this.databaseService.insert(query, values, "create[Entity]");
+    return [entity];
+  }
+
+  async findById(id: string): Promise<[Entity] | null> {
+    const query = `
+      SELECT id, user_id, name, status, is_active, created_at, updated_at, deleted_at
+      FROM ${this.tableName}
+      WHERE id = $1 AND deleted_at IS NULL
+    `;
+
+    const result = await this.databaseService.select<T[Entity]Record>(
+      query,
+      [id],
+      "find[Entity]ById"
+    );
+
+    return result[0] ? [Entity].create(result[0]) : null;
+  }
+
+  // ... other CRUD methods following same pattern
+}
+```
+
+## Key Rules
+
+1. **Implement Domain Interface**: Always implement the domain-defined interface
+2. **Database Service**: Use injected IDatabaseService for all database operations
+3. **Entity Mapping**: Always return domain entities, never raw database records
+4. **Soft Deletes**: Use `deleted_at IS NULL` for active record queries
+5. **Parameterized Queries**: Always use parameterized queries for security
+6. **Error Context**: Include operation context in database service calls

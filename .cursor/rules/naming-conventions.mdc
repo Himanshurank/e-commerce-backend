@@ -1,0 +1,58 @@
+---
+alwaysApply: true
+---
+
+# Naming Conventions & Code Standards
+
+## File Naming
+
+- **Entities**: `[entity].ts` (e.g., `user.ts`, `product.ts`)
+- **Interfaces**: `[entity]Repository.ts`, `[action][Entity]UseCase.ts`
+- **Implementations**: `[entity]RepoImpl.ts`, `[action][Entity]UseCase.ts`
+- **Controllers**: `[feature]Controller.ts`
+- **Routes**: `[feature]Routes.ts`
+- **DTOs**: `[action][Entity].ts`
+- **Validation**: `[feature]ValidationSchemas.ts`
+- **Factories**: `[feature]ControllerFactory.ts`
+
+## Code Naming
+
+- **Interfaces**: `I` prefix (`IUserRepository`, `IEmailService`)
+- **Types**: `T` prefix (`TUserRecord`, `TCreateUserParams`)
+- **Enums**: PascalCase (`UserStatus`, `OrderStatus`)
+- **Classes**: PascalCase (`User`, `CreateUserUseCase`)
+- **Variables/Functions**: camelCase (`userId`, `createUser`)
+
+## Import Rules
+
+```typescript
+// ✅ CORRECT - Relative imports for internal code
+import { User } from "../../domain/entities/auth/user";
+import { IUserRepository } from "../../domain/interfaces/infrastructure/repositories/userRepository";
+
+// ✅ CORRECT - Absolute imports for node modules only
+import express from "express";
+import { v4 as uuidv4 } from "uuid";
+
+// ❌ WRONG - Never import concrete implementations across layers
+import { UserRepoImpl } from "../../infrastructure/repositories/userRepoImpl";
+
+// ❌ WRONG - Never import from higher layers
+import { UserController } from "../../presentation/controllers/userController";
+```
+
+## Dependency Injection Rules
+
+```typescript
+// ✅ CORRECT - Inject interfaces
+constructor(
+  private readonly userRepository: IUserRepository,
+  private readonly logger: ILoggerService
+) {}
+
+// ❌ WRONG - Never inject concrete classes
+constructor(
+  private readonly userRepository: UserRepoImpl,
+  private readonly logger: LoggerService
+) {}
+```

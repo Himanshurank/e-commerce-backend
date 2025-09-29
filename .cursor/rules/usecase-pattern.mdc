@@ -1,0 +1,80 @@
+---
+globs: src/application/usecases/**/*.ts
+---
+
+# Use Case Pattern
+
+Use cases orchestrate business logic and coordinate between different layers.
+
+## Use Case Structure Template
+
+```typescript
+import { I[Entity]Repository } from "../../../domain/interfaces/infrastructure/repositories/[entity]Repository";
+import { ILoggerService } from "../../../shared/core/interfaces/services/loggerService";
+import { [Action][Entity]RequestDto } from "../../Dto/[feature]/[action][Entity]";
+import { [Entity] } from "../../../domain/entities/[feature]/[entity]";
+
+export class [Action][Entity]UseCase {
+  constructor(
+    private readonly [entity]Repository: I[Entity]Repository,
+    private readonly logger: ILoggerService,
+    // Additional services as needed
+    private readonly [optional]Service?: I[Optional]Service
+  ) {}
+
+  async execute(params: [Action][Entity]RequestDto): Promise<[Entity]> {
+    try {
+      this.logger.info("Executing [action][entity] use case", {
+        [contextField]: params.[contextField]
+      });
+
+      // 1. Business validation
+      const existing = await this.[entity]Repository.findByNameAndUserId(
+        params.name,
+        params.userId
+      );
+
+      if (existing && shouldPreventDuplicates) {
+        this.logger.error("[Entity] already exists", {
+          name: params.name,
+          userId: params.userId,
+        });
+        throw new Error("[Entity] already exists");
+      }
+
+      // 2. Main business logic
+      const [entity] = await this.[entity]Repository.create({
+        userId: params.userId,
+        name: params.name,
+        status: params.status,
+      });
+
+      // 3. Side effects (optional)
+      if (this.[optional]Service) {
+        await this.[optional]Service.performSideEffect([entity].id);
+      }
+
+      this.logger.info("[Action][entity] completed successfully", {
+        [entity]Id: [entity].id,
+      });
+
+      return [entity]; // Always return entities, never DTOs
+    } catch (error) {
+      this.logger.error("[Action][entity] use case failed", {
+        error,
+        [contextField]: params.[contextField],
+      });
+      throw error; // Always rethrow with context
+    }
+  }
+}
+```
+
+## Key Rules
+
+1. **Single Responsibility**: One business operation per use case
+2. **Dependency Injection**: All dependencies via constructor interfaces
+3. **Error Handling**: Always log with context and rethrow
+4. **Return Entities**: Never return DTOs from use cases
+5. **Structured Logging**: Include relevant context in all logs
+6. **Business Validation**: Validate business rules, not just data format

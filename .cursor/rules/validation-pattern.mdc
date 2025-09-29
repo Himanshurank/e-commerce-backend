@@ -1,0 +1,92 @@
+---
+globs: src/presentation/validation/**/*.ts
+---
+
+# Validation Pattern
+
+Input validation using Joi schemas with detailed error messages.
+
+## Validation Schema Template
+
+```typescript
+import Joi from "joi";
+import { [Status] } from "../../domain/enum/[status]";
+
+export const [feature]ValidationSchemas = {
+  [action1][Entity]: Joi.object({
+    name: Joi.string().min(1).max(255).required().messages({
+      "any.required": "Name is required",
+      "string.min": "Name must be at least 1 character",
+      "string.max": "Name cannot exceed 255 characters",
+    }),
+    status: Joi.string()
+      .valid([Status].[VALUE1], [Status].[VALUE2], [Status].[VALUE3])
+      .required()
+      .messages({
+        "any.required": "Status is required",
+        "any.only": "Status must be one of: {#valids}",
+      }),
+    optionalField: Joi.string().optional().max(500).messages({
+      "string.max": "Optional field cannot exceed 500 characters",
+    }),
+  }),
+
+  [action2][Entity]: Joi.object({
+    id: Joi.string().uuid().required().messages({
+      "any.required": "[Entity] ID is required",
+      "string.uuid": "[Entity] ID must be a valid UUID",
+    }),
+  }),
+
+  [action3][Entity]Params: Joi.object({
+    id: Joi.string().uuid().required().messages({
+      "any.required": "[Entity] ID is required",
+      "string.uuid": "[Entity] ID must be a valid UUID",
+    }),
+  }),
+
+  [action3][Entity]Body: Joi.object({
+    name: Joi.string().min(1).max(255).optional().messages({
+      "string.min": "Name must be at least 1 character",
+      "string.max": "Name cannot exceed 255 characters",
+    }),
+    status: Joi.string()
+      .valid([Status].[VALUE1], [Status].[VALUE2], [Status].[VALUE3])
+      .optional()
+      .messages({
+        "any.only": "Status must be one of: {#valids}",
+      }),
+  }),
+};
+```
+
+## Route Integration
+
+```typescript
+import { createValidator } from "express-joi-validation";
+
+const validator = createValidator({ passError: true });
+
+// POST /[feature] - Create new [entity]
+this.router.post(
+  "/",
+  validator.body([feature]ValidationSchemas.[action1][Entity]),
+  this.[feature]Controller.[action1][Entity].bind(this.[feature]Controller)
+);
+
+// GET /[feature]/:id - Get [entity] by ID
+this.router.get(
+  "/:id",
+  validator.params([feature]ValidationSchemas.[action2][Entity]),
+  this.[feature]Controller.[action2][Entity].bind(this.[feature]Controller)
+);
+```
+
+## Key Rules
+
+1. **Detailed Messages**: Provide specific error messages for each validation rule
+2. **Enum Validation**: Use domain enums for status/type validations
+3. **UUID Validation**: Always validate UUID format for IDs
+4. **Optional vs Required**: Clearly distinguish required and optional fields
+5. **Separate Schemas**: Create separate schemas for params, body, and query
+6. **Bind Controllers**: Always bind controller methods to maintain `this` context

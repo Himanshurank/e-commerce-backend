@@ -1,0 +1,134 @@
+---
+description: E-commerce domain-specific implementation patterns and business rules
+---
+
+# E-Commerce Domain Rules
+
+Domain-specific patterns for the e-commerce platform based on the comprehensive planning.
+
+## Core Business Entities
+
+### User Management
+
+- **User**: Customer, Seller, Admin roles with approval workflows
+- **SellerProfile**: Business verification and commission tracking
+- **UserSession**: JWT token management and device tracking
+
+### Product Catalog
+
+- **Product**: Multi-vendor products with inventory tracking
+- **Category**: Hierarchical category structure
+- **ProductVariant**: Size, color, and other variations
+
+### Order Management
+
+- **Order**: Multi-seller order processing with status tracking
+- **OrderItem**: Individual items with seller-specific commission
+- **Cart**: Session-based shopping cart with persistence
+
+### Payment & Financial
+
+- **Transaction**: Stripe integration with webhook handling
+- **SellerPayout**: Commission-based seller payments
+- **Commission**: Platform revenue tracking
+
+## Business Rules
+
+### User Registration & Authentication
+
+```typescript
+// Seller approval workflow
+enum UserStatus {
+  PENDING = "pending",
+  APPROVED = "approved",
+  REJECTED = "rejected",
+  SUSPENDED = "suspended"
+}
+
+// Only approved sellers can list products
+public canListProducts(): boolean {
+  return this.role === UserRole.SELLER && this.status === UserStatus.APPROVED;
+}
+```
+
+### Product Management
+
+```typescript
+// Product availability rules
+public isAvailable(): boolean {
+  return this.status === ProductStatus.ACTIVE &&
+         this.stockQuantity > 0 &&
+         !this.deletedAt;
+}
+
+// Low stock threshold
+public isLowStock(): boolean {
+  return this.stockQuantity <= this.lowStockThreshold;
+}
+```
+
+### Order Processing
+
+```typescript
+// Order status progression
+enum OrderStatus {
+  PENDING = "pending",
+  CONFIRMED = "confirmed",
+  PROCESSING = "processing",
+  SHIPPED = "shipped",
+  DELIVERED = "delivered",
+  CANCELLED = "cancelled",
+  REFUNDED = "refunded"
+}
+
+// Order cancellation rules
+public canBeCancelled(): boolean {
+  return [OrderStatus.PENDING, OrderStatus.CONFIRMED].includes(this.status);
+}
+```
+
+### Commission Calculation
+
+```typescript
+// Commission calculation per order item
+public calculateCommission(): {
+  sellerAmount: number;
+  platformCommission: number;
+  sellerPayout: number;
+} {
+  const sellerAmount = this.totalPrice;
+  const platformCommission = sellerAmount * (this.commissionRate / 100);
+  const sellerPayout = sellerAmount - platformCommission;
+
+  return { sellerAmount, platformCommission, sellerPayout };
+}
+```
+
+## Database Schema References
+
+- Complete schema: [DATABASE_PLANNING.md](mdc:doc/DATABASE_PLANNING.md)
+- User tables: users, seller_profiles, user_sessions
+- Product tables: products, categories, product_variants
+- Order tables: orders, order_items, carts, cart_items
+- Payment tables: transactions, seller_payouts
+
+## API Endpoint Patterns
+
+```
+/api/auth/*          # Authentication & user management
+/api/products/*      # Product catalog (public + seller)
+/api/orders/*        # Order management (customer + seller)
+/api/cart/*          # Shopping cart operations
+/api/payments/*      # Payment processing & webhooks
+/api/admin/*         # Admin operations (user approval, payouts)
+/api/seller/*        # Seller dashboard & analytics
+```
+
+## Key Business Validations
+
+1. **Email Uniqueness**: Across all user types
+2. **Product SKU**: Unique per seller (not globally)
+3. **Order Items**: Must belong to active products
+4. **Commission Rates**: Between 0% and 50%
+5. **Inventory**: Prevent overselling with stock checks
+6. **Payment Status**: Sync with Stripe webhook events

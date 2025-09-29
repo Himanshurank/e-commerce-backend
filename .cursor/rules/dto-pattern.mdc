@@ -1,0 +1,125 @@
+---
+globs: src/application/Dto/**/*.ts
+---
+
+# DTO (Data Transfer Object) Pattern
+
+DTOs handle data transformation between layers and HTTP requests/responses.
+
+## DTO Structure Template
+
+```typescript
+import { [Status] } from "../../../domain/enum/[status]";
+import { [Entity] } from "../../../domain/entities/[feature]/[entity]";
+
+export class [Action][Entity]RequestDto {
+  constructor(
+    public name: string,
+    public status: [Status],
+    public userId: string,
+    public optionalField?: string
+  ) {}
+
+  static fromDto(req: any): [Action][Entity]RequestDto {
+    return new [Action][Entity]RequestDto(
+      req.body.name,
+      req.body.status,
+      req.user.userId, // From auth middleware
+      req.body.optionalField
+    );
+  }
+}
+
+export class [Action][Entity]ResponseDto {
+  constructor(
+    public id: string,
+    public name: string,
+    public status: string,
+    public createdAt: string,
+    public isActive: boolean
+  ) {}
+
+  static toDto([entity]: [Entity]): [Action][Entity]ResponseDto {
+    return new [Action][Entity]ResponseDto(
+      [entity].id,
+      [entity].name,
+      [entity].status,
+      [entity].createdAt.toISOString(),
+      [entity].isActive
+    );
+  }
+
+  static toDtoArray([entities]: [Entity][]): [Action][Entity]ResponseDto[] {
+    return [entities].map([entity] => this.toDto([entity]));
+  }
+}
+```
+
+## Pagination DTO Template
+
+```typescript
+export class Get[Entity]ListRequestDto {
+  constructor(
+    public page: number = 1,
+    public limit: number = 20,
+    public sortBy: string = "createdAt",
+    public sortOrder: "ASC" | "DESC" = "DESC",
+    public status?: [Status],
+    public search?: string
+  ) {}
+
+  static fromQuery(req: any): Get[Entity]ListRequestDto {
+    return new Get[Entity]ListRequestDto(
+      parseInt(req.query.page) || 1,
+      Math.min(parseInt(req.query.limit) || 20, 100), // Max 100 items
+      req.query.sortBy || "createdAt",
+      req.query.sortOrder?.toUpperCase() === "ASC" ? "ASC" : "DESC",
+      req.query.status,
+      req.query.search
+    );
+  }
+
+  get offset(): number {
+    return (this.page - 1) * this.limit;
+  }
+}
+
+export class Get[Entity]ListResponseDto {
+  constructor(
+    public items: [Action][Entity]ResponseDto[],
+    public pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+    }
+  ) {}
+
+  static toDto(
+    [entities]: [Entity][],
+    totalCount: number,
+    page: number,
+    limit: number
+  ): Get[Entity]ListResponseDto {
+    return new Get[Entity]ListResponseDto(
+      [Action][Entity]ResponseDto.toDtoArray([entities]),
+      {
+        page,
+        limit,
+        total: totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+      }
+    );
+  }
+}
+```
+
+## Key Rules
+
+1. **Static Factories**: Use static methods for creating DTOs from requests/entities
+2. **Type Safety**: Define all properties with proper types
+3. **Data Transformation**: Handle data format conversion (Date to ISO string)
+4. **No Business Logic**: DTOs are pure data containers
+5. **Validation Boundary**: DTOs are created after validation passes
+6. **Array Handling**: Provide array transformation methods for collections
+7. **Pagination Support**: Include pagination metadata for list responses

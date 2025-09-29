@@ -1,0 +1,134 @@
+---
+globs: src/presentation/factories/**/*.ts,src/infrastructure/factories/**/*.ts
+---
+
+# Factory Pattern
+
+Factories handle dependency injection and complex object construction.
+
+## Controller Factory Template
+
+```typescript
+import { ILoggerService } from "../../shared/core/interfaces/services/loggerService";
+import { IDatabaseService } from "../../shared/core/interfaces/services/databaseService";
+import { I[Feature]Controller } from "../../domain/interfaces/presentation/controllers/[feature]Controller";
+
+// Repository implementations
+import { [Entity]RepoImpl } from "../../infrastructure/repositories/[entity]RepoImpl";
+
+// Service factories
+import { [Service]ServiceFactory } from "../../infrastructure/factories/[service]ServiceFactory";
+
+// Use case implementations
+import { [Action1][Entity]UseCase } from "../../application/usecases/[feature]/[action1][Entity]UseCase";
+import { [Action2][Entity]UseCase } from "../../application/usecases/[feature]/[action2][Entity]UseCase";
+
+// Controller implementation
+import { [Feature]Controller } from "../controllers/[feature]Controller";
+
+export class [Feature]ControllerFactory {
+  static create(
+    logger: ILoggerService,
+    databaseService: IDatabaseService,
+    [optional]Service?: I[Optional]Service
+  ): I[Feature]Controller {
+    // 1. Create repositories
+    const [entity]Repository = new [Entity]RepoImpl(databaseService);
+
+    // 2. Create services via factories
+    const [service]Service = [Service]ServiceFactory.create(
+      databaseService,
+      logger
+    );
+
+    // 3. Create use cases with dependency injection
+    const [action1][Entity]UseCase = new [Action1][Entity]UseCase(
+      [entity]Repository,
+      logger,
+      [service]Service
+    );
+
+    const [action2][Entity]UseCase = new [Action2][Entity]UseCase(
+      [entity]Repository,
+      logger
+    );
+
+    // Additional use cases...
+
+    // 4. Return controller with all use cases
+    return new [Feature]Controller(
+      logger,
+      [action1][Entity]UseCase,
+      [action2][Entity]UseCase,
+      // Additional use cases...
+    );
+  }
+}
+```
+
+## Service Factory Template
+
+```typescript
+import { IDatabaseService } from "../../shared/core/interfaces/services/databaseService";
+import { ILoggerService } from "../../shared/core/interfaces/services/loggerService";
+import { I[Service]Service } from "../../domain/interfaces/infrastructure/externalServices/[service]Service";
+import { [Service]Service } from "../externalServices/[service]Service";
+
+export class [Service]ServiceFactory {
+  static create(
+    databaseService: IDatabaseService,
+    logger: ILoggerService
+  ): I[Service]Service {
+    // Validate required environment variables
+    const requiredConfig = process.env.[SERVICE]_CONFIG;
+    if (!requiredConfig) {
+      throw new Error("[SERVICE]_CONFIG environment variable is required");
+    }
+
+    // Create external client if needed
+    const externalClient = new [External]Client({
+      apiKey: process.env.[SERVICE]_API_KEY,
+      baseUrl: process.env.[SERVICE]_BASE_URL,
+    });
+
+    // Return service with dependencies
+    return new [Service]Service(
+      externalClient,
+      logger
+    );
+  }
+}
+```
+
+## Route Factory Integration
+
+```typescript
+// In routes class constructor
+export class [Feature]Routes {
+  private router = Router();
+  private [feature]Controller!: I[Feature]Controller;
+
+  constructor(
+    private logger: ILoggerService,
+    private databaseService: IDatabaseService,
+    private [optional]Service?: I[Optional]Service
+  ) {
+    this.[feature]Controller = [Feature]ControllerFactory.create(
+      this.logger,
+      this.databaseService,
+      this.[optional]Service
+    );
+    this.setupRoutes();
+  }
+}
+```
+
+## Key Rules
+
+1. **Static Factory Methods**: Use static `create()` methods for object construction
+2. **Dependency Injection**: Inject all dependencies via constructor parameters
+3. **Interface Returns**: Always return interfaces, never concrete implementations
+4. **Environment Validation**: Validate required environment variables in factories
+5. **Layered Construction**: Build dependencies in correct order (repos → services → use cases → controllers)
+6. **Error Handling**: Throw descriptive errors for missing configuration
+7. **Single Responsibility**: Each factory creates one type of object

@@ -1,101 +1,77 @@
-// IMPORTANT: Make sure to import `instrument.ts` at the top of your file.
-import "./instrument";
+import { createApp } from "./app";
+import { LoggerService } from "./shared/services/loggerService";
+import { DatabaseServiceFactory } from "./infrastructure/factories/databaseServiceFactory";
+import { IDatabaseService } from "./shared/core/interfaces/services/databaseService";
 
-import express, { Request, Response } from "express";
-import cors from "cors";
-import dotenv from "dotenv";
-import * as Sentry from "@sentry/node";
-import { DatabaseFactory } from "./shared/factories/databaseFactory";
-import { LoggerFactory } from "./shared/factories/logger-factory";
-import { moduleRoutes } from "./modules";
-import { sentryApiLogger } from "./shared/middleware/sentry-logging-middleware";
-import { errorLogger } from "./shared/middleware/error-logger-middleware";
+const logger = new LoggerService();
+const PORT = process.env.PORT || 3000;
 
-// Load environment variables
-dotenv.config();
+let databaseService: IDatabaseService;
 
-const app = express();
-
-// Middleware
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
-// Sentry API logging middleware (log all API calls)
-app.use(sentryApiLogger);
-
-// Routes
-
-// Clean Architecture Module Routes
-app.use(moduleRoutes);
-
-// Health check route
-app.get("/health", (req: Request, res: Response) => {
-  res.json({
-    status: "ok",
-    timestamp: new Date().toISOString(),
-    environment: process.env["NODE_ENV"] || "development",
-  });
-});
-
-// Debug Sentry endpoint for testing
-app.get("/debug-sentry", function mainHandler(req: Request, res: Response) {
-  throw new Error("My first Sentry error!");
-});
-
-// The error handler must be registered before any other error middleware and after all controllers
-Sentry.setupExpressErrorHandler(app);
-
-// Our custom error logger middleware
-app.use(errorLogger);
-
-// Our custom error logger middleware
-app.use(function onError(err: Error, req: Request, res: Response, next: any) {
-  const logger = LoggerFactory.getInstance();
-  logger.error("Unhandled error in server", err);
-  res.statusCode = 500;
-  res.end((res as any).sentry + "\n");
-});
-
-const PORT = process.env["PORT"] || 5000;
-
-// Graceful shutdown handler
-const gracefulShutdown = async () => {
-  const logger = LoggerFactory.getInstance();
-  logger.info("Received shutdown signal, closing server gracefully...");
-
+async function startServer() {
   try {
-    await DatabaseFactory.closeAllConnections();
-    logger.info("Database connections closed");
-    process.exit(0);
-  } catch (error) {
-    logger.error("Error during graceful shutdown", error as Error);
+    logger.info("Initializing database connection...");
+    databaseService = await DatabaseServiceFactory.createPostgresService(
+      logger
+    );
+    logger.info("Database connection established");
+
+    // Create app with database service
+    const app = createApp(databaseService);
+
+    const server = app.listen(PORT, () => {
+      logger.info(`Server running on port ${PORT} 🚀`);
+      logger.info(`Environment: ${process.env.NODE_ENV || "development"}`);
+      logger.info(`Database: ${databaseService.getConnectionInfo()}`);
+    });
+
+    return server;
+  } catch (error: any) {
+    logger.error("❌ Failed to start server", { error: error.message });
     process.exit(1);
   }
-};
+}
 
-// Handle shutdown signals
-process.on("SIGTERM", gracefulShutdown);
-process.on("SIGINT", gracefulShutdown);
+const serverPromise = startServer();
 
-app.listen(PORT, async () => {
-  const logger = LoggerFactory.getInstance();
+async function gracefulShutdown(signal: string) {
+  logger.info(`${signal} received. Shutting down gracefully...`);
 
-  logger.info(`🚀 Server running on port ${PORT}`);
-  logger.info(`📊 Environment: ${process.env["NODE_ENV"] || "development"}`);
-
-  // Test database connections on startup
   try {
-    logger.info("🔍 Testing database connections...");
-    const connectionTests = await DatabaseFactory.testConnections();
+    const server = await serverPromise;
 
-    for (const [connection, status] of Object.entries(connectionTests)) {
-      const emoji = status ? "✅" : "❌";
-      logger.info(`${emoji} ${connection}: ${status ? "Connected" : "Failed"}`);
-    }
-  } catch (error) {
-    logger.error("❌ Database connection test failed", error as Error);
+    server.close(async () => {
+      logger.info("HTTP server closed");
+
+      try {
+        await DatabaseServiceFactory.closeAllConnections();
+        logger.info("Database connections closed");
+      } catch (error: any) {
+        logger.error("Error closing database connections", {
+          error: error.message,
+        });
+      }
+
+      logger.info("Process terminated");
+      process.exit(0);
+    });
+  } catch (error: any) {
+    logger.error("Error during graceful shutdown", { error: error.message });
+    process.exit(1);
   }
+}
+
+process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+process.on("SIGINT", () => gracefulShutdown("SIGINT"));
+
+process.on("uncaughtException", (error) => {
+  logger.error("Uncaught Exception", error);
+  process.exit(1);
 });
 
-export default app;
+process.on("unhandledRejection", (reason, promise) => {
+  logger.error("Unhandled Rejection at Promise", { reason, promise });
+  process.exit(1);
+});
+
+export default serverPromise;

@@ -1,0 +1,75 @@
+---
+globs: src/presentation/controllers/**/*.ts
+---
+
+# Controller Pattern
+
+Controllers handle HTTP requests and coordinate with use cases.
+
+## Controller Structure Template
+
+```typescript
+import { Request, Response } from "express";
+import { ILoggerService } from "../../shared/core/interfaces/services/loggerService";
+import { HTTP_STATUS_CODES, API_MESSAGES } from "../../shared/constants/constants";
+import { I[Feature]Controller } from "../../domain/interfaces/presentation/controllers/[feature]Controller";
+import { ApiResponse } from "../../shared/utils/ApiResponse";
+import { ApiError } from "../../shared/utils/ApiError";
+
+// Import DTOs
+import {
+  [Action1][Entity]RequestDto,
+  [Action1][Entity]ResponseDto,
+} from "../../application/Dto/[feature]/[action1][Entity]";
+
+// Import Use Cases
+import { [Action1][Entity]UseCase } from "../../application/usecases/[feature]/[action1][Entity]UseCase";
+
+export class [Feature]Controller implements I[Feature]Controller {
+  constructor(
+    private readonly logger: ILoggerService,
+    private readonly [action1][Entity]UseCase: [Action1][Entity]UseCase,
+    // Additional use cases...
+  ) {}
+
+  public async [action1][Entity](req: Request, res: Response): Promise<void> {
+    try {
+      this.logger.info("Processing [action1][entity] request");
+
+      const params = [Action1][Entity]RequestDto.fromDto(req);
+      const [entity] = await this.[action1][Entity]UseCase.execute(params);
+      const response = [Action1][Entity]ResponseDto.toDto([entity]);
+
+      this.logger.info("[action1][entity] request completed");
+      res
+        .status(HTTP_STATUS_CODES.CREATED)
+        .json(new ApiResponse(HTTP_STATUS_CODES.CREATED, response, API_MESSAGES.CREATED));
+    } catch (error: any) {
+      this.logger.error("[action1][entity] request failed", {
+        error: error.message || "Unknown error",
+      });
+
+      res
+        .status(HTTP_STATUS_CODES.INTERNAL_SERVER_ERROR)
+        .json(
+          new ApiError(
+            HTTP_STATUS_CODES.INTERNAL_SERVER_ERROR,
+            error.message || API_MESSAGES.CREATION_FAILED,
+            error.errors || [],
+            error.stack || ""
+          )
+        );
+    }
+  }
+}
+```
+
+## Key Rules
+
+1. **Implement Interface**: Always implement domain-defined controller interface
+2. **Use Case Coordination**: Controllers only coordinate, never contain business logic
+3. **DTO Transformation**: Convert requests to DTOs, entities to response DTOs
+4. **Error Handling**: Always catch errors and format for HTTP response
+5. **Structured Logging**: Log request start, completion, and errors with context
+6. **HTTP Status Codes**: Use appropriate status codes from constants
+7. **No Direct Repository Access**: Only interact with use cases

@@ -1,28 +1,33 @@
+# Dependencies
 node_modules/
-.env
-.env.local
-.env.production
-.env.staging
-
-# TypeScript build output
-dist/
-*.tsbuildinfo
-
-# Logs
-logs
-*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# Production build
+dist/
+build/
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Logs
+logs/
+*.log
+
 # Runtime data
-pids
+pids/
 *.pid
 *.seed
 *.pid.lock
 
 # Coverage directory used by tools like istanbul
 coverage/
+*.lcov
 
 # nyc test coverage
 .nyc_output
@@ -42,14 +47,15 @@ jspm_packages/
 # Yarn Integrity file
 .yarn-integrity
 
-# uploads directory
-uploads/
+# dotenv environment variables file
+.env
 
 # IDE files
 .vscode/
 .idea/
 *.swp
 *.swo
+*~
 
 # OS generated files
 .DS_Store
@@ -60,3 +66,6 @@ uploads/
 ehthumbs.db
 Thumbs.db
 
+# Temporary files
+tmp/
+temp/

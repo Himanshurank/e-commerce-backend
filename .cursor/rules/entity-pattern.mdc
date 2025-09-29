@@ -1,0 +1,105 @@
+---
+globs: src/domain/entities/**/*.ts
+---
+
+# Domain Entity Pattern
+
+Domain entities are immutable business objects with validation and business rules.
+
+## Entity Structure Template
+
+```typescript
+import { T[Entity]Record } from "../../types/infrastructure/repositories/[entity]Repository";
+import { [Status] } from "../../enum/[status]";
+
+interface Props {
+  id: string;
+  name: string;
+  status: [Status];
+  createdAt: Date;
+  updatedAt: Date;
+  // Optional fields with defaults
+  isActive?: boolean;
+  deletedAt?: Date | null;
+}
+
+export class [Entity] {
+  private readonly _id: string;
+  private readonly _name: string;
+  private readonly _status: [Status];
+  private readonly _createdAt: Date;
+  private readonly _updatedAt: Date;
+  private _isActive: boolean;
+  private _deletedAt: Date | null;
+
+  constructor(props: Props) {
+    // Assign all properties
+    this._id = props.id;
+    this._name = props.name;
+    // ... other assignments
+
+    this.validate(); // Always validate in constructor
+  }
+
+  // Static factory for database records
+  static create(params: T[Entity]Record): [Entity] {
+    return new [Entity]({
+      id: params.id,
+      name: params.name,
+      status: params.status,
+      createdAt: params.created_at,
+      updatedAt: params.updated_at,
+      isActive: params.is_active,
+      deletedAt: params.deleted_at,
+    });
+  }
+
+  // Getters (readonly access)
+  get id(): string { return this._id; }
+  get name(): string { return this._name; }
+  // ... other getters
+
+  // Business methods
+  public canBeDeleted(): boolean {
+    return this._isActive && !this._deletedAt;
+  }
+
+  public deactivate(): [Entity] {
+    return new [Entity]({
+      ...this.toDomainProps(),
+      isActive: false,
+      updatedAt: new Date(),
+    });
+  }
+
+  private validate(): void {
+    if (!this._id) {
+      throw new Error("[Entity] id is required");
+    }
+    if (!this._name || this._name.trim().length === 0) {
+      throw new Error("[Entity] name is required");
+    }
+    // ... other validations
+  }
+
+  private toDomainProps(): Props {
+    return {
+      id: this._id,
+      name: this._name,
+      status: this._status,
+      createdAt: this._createdAt,
+      updatedAt: this._updatedAt,
+      isActive: this._isActive,
+      deletedAt: this._deletedAt,
+    };
+  }
+}
+```
+
+## Key Rules
+
+1. **Immutability**: All fields are readonly except for mutable business state
+2. **Validation**: Always validate in constructor
+3. **Static Factory**: Use `create()` method for database records
+4. **Business Methods**: Include domain-specific behavior
+5. **No External Dependencies**: Pure business logic only

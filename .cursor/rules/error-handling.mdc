@@ -1,0 +1,116 @@
+---
+alwaysApply: true
+---
+
+# Error Handling Standards
+
+Consistent error handling across all layers with structured logging.
+
+## Use Case Error Handling
+
+```typescript
+async execute(params: RequestDto): Promise<Entity> {
+  try {
+    this.logger.info("Starting operation", { context: params.id });
+
+    // Business logic here
+
+    this.logger.info("Operation completed successfully", { entityId: entity.id });
+    return entity;
+  } catch (error) {
+    this.logger.error("Operation failed", {
+      error: error.message,
+      stack: error.stack,
+      context: params.id,
+    });
+    throw error; // Always rethrow with context
+  }
+}
+```
+
+## Controller Error Handling
+
+```typescript
+public async actionMethod(req: Request, res: Response): Promise<void> {
+  try {
+    const params = RequestDto.fromDto(req);
+    const entity = await this.useCase.execute(params);
+    const response = ResponseDto.toDto(entity);
+
+    res.status(HTTP_STATUS_CODES.OK)
+       .json(new ApiResponse(HTTP_STATUS_CODES.OK, response, API_MESSAGES.SUCCESS));
+  } catch (error: any) {
+    this.logger.error("Request failed", {
+      error: error.message,
+      path: req.path,
+      method: req.method
+    });
+
+    // Determine appropriate status code
+    const statusCode = this.getErrorStatusCode(error);
+
+    res.status(statusCode)
+       .json(new ApiError(statusCode, error.message, error.errors || []));
+  }
+}
+
+private getErrorStatusCode(error: any): number {
+  if (error.message.includes("not found")) return HTTP_STATUS_CODES.NOT_FOUND;
+  if (error.message.includes("already exists")) return HTTP_STATUS_CODES.CONFLICT;
+  if (error.message.includes("validation")) return HTTP_STATUS_CODES.BAD_REQUEST;
+  return HTTP_STATUS_CODES.INTERNAL_SERVER_ERROR;
+}
+```
+
+## Repository Error Handling
+
+```typescript
+async findById(id: string): Promise<Entity | null> {
+  try {
+    const result = await this.databaseService.select<TEntityRecord>(
+      query,
+      [id],
+      "findEntityById" // Operation context for logging
+    );
+
+    return result[0] ? Entity.create(result[0]) : null;
+  } catch (error) {
+    // Database service handles logging, just rethrow
+    throw error;
+  }
+}
+```
+
+## Logging Standards
+
+```typescript
+// ✅ CORRECT - Structured logging with context
+this.logger.info("User created", {
+  userId: user.id,
+  email: user.email,
+  provider: "local",
+});
+
+this.logger.error("Database operation failed", {
+  error: error.message,
+  operation: "createUser",
+  table: "users",
+  stack: error.stack,
+});
+
+// ❌ WRONG - Logging sensitive data
+this.logger.info("User login", {
+  password: user.password, // Never log passwords
+  token: jwt.token, // Never log tokens
+  creditCard: user.cc, // Never log sensitive data
+});
+```
+
+## Key Rules
+
+1. **Always Rethrow**: Use cases and repositories should always rethrow errors
+2. **Add Context**: Include relevant context in error logs
+3. **Structured Logging**: Use object format for log context
+4. **No Sensitive Data**: Never log passwords, tokens, or sensitive information
+5. **Operation Context**: Include operation name in database calls
+6. **HTTP Status Mapping**: Map business errors to appropriate HTTP status codes

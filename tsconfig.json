@@ -15,16 +15,25 @@
     "sourceMap": true,
     "removeComments": true,
     "noImplicitAny": true,
-    "noImplicitThis": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
     "noImplicitReturns": true,
-    "noUnusedLocals": false,
-    "noUnusedParameters": false,
-    "exactOptionalPropertyTypes": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,
-    "noPropertyAccessFromIndexSignature": true,
-    "noUncheckedIndexedAccess": true
+    "allowUnusedLabels": false,
+    "allowUnreachableCode": false,
+    "exactOptionalPropertyTypes": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "baseUrl": "./src",
+    "paths": {
+      "@/*": ["*"],
+      "@shared/*": ["shared/*"],
+      "@modules/*": ["modules/*"],
+      "@config/*": ["config/*"]
+    }
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.spec.ts"]
 }
-
