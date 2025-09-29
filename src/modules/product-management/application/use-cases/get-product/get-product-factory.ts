@@ -5,10 +5,12 @@
 
 import { GetProductUseCase } from "./get-product-use-case";
 import { ProductRepositoryImpl } from "../../../infrastructure/repositories/product-repository-impl";
+import { LoggerFactory } from "../../../../../shared/factories/logger-factory";
 
 export class GetProductFactory {
   static create(): GetProductUseCase {
     const productRepository = new ProductRepositoryImpl();
-    return new GetProductUseCase(productRepository);
+    const logger = LoggerFactory.getInstance();
+    return new GetProductUseCase(productRepository, logger);
   }
 }

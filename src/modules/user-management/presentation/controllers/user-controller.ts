@@ -30,12 +30,7 @@ export class UserController {
         message: "User registered successfully",
       });
     } catch (error: any) {
-      loggerService.errorLog({
-        data: error,
-        msg: "User Registration Failed",
-        userId: null,
-        requestBody: req.body,
-      });
+      loggerService.error("User Registration Failed", error);
       return next(error);
     }
   }
@@ -75,11 +70,7 @@ export class UserController {
         message: "Login successful",
       });
     } catch (error: any) {
-      loggerService.errorLog({
-        data: error,
-        msg: "User Login Failed",
-        email: req.body.email,
-      });
+      loggerService.error("User Login Failed", error);
       return next(error);
     }
   }

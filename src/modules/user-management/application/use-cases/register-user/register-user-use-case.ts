@@ -5,86 +5,113 @@ import { UserDomainService } from "../../../domain/interfaces/user-domain-interf
 import { UserMapper } from "../../../mappers/user-mapper";
 import { UserRole } from "../../../domain/entities/user-entity";
 import { USER_CONSTANTS } from "../../constants/user-constants";
+import { ILoggerService } from "../../../../../shared/interfaces/logger-service-interface";
 import jwt from "jsonwebtoken";
 
 export class RegisterUserUseCase {
   constructor(
     private userRepository: UserRepositoryInterface,
-    private userDomainService: UserDomainService
+    private userDomainService: UserDomainService,
+    private logger?: ILoggerService
   ) {}
 
   async execute(
     request: RegisterUserRequestDto
   ): Promise<RegisterUserResponseDto> {
-    // 1. Validate input data
-    await this.validateRequest(request);
+    this.logger?.info("Starting user registration", { email: request.email });
 
-    // 2. Check if user already exists
-    const existingUser = await this.userRepository.getUserByEmail(
-      request.email
-    );
-    if (existingUser) {
-      throw new Error(USER_CONSTANTS.ERRORS.USER_ALREADY_EXISTS);
-    }
+    try {
+      // 1. Validate input data
+      await this.validateRequest(request);
+      this.logger?.info("User registration validation passed", {
+        email: request.email,
+      });
 
-    // 3. Validate user registration data using domain service
-    await this.userDomainService.validateUserRegistration({
-      email: request.email,
-      password: request.password,
-      firstName: request.firstName,
-      lastName: request.lastName,
-    });
-
-    // 4. Hash password
-    const passwordHash = await this.userDomainService.hashPassword(
-      request.password
-    );
-
-    // 5. Create user entity
-    const userData = UserMapper.fromCreateRequest(request);
-    const userEntity = UserMapper.createUserEntity({
-      ...userData,
-      passwordHash,
-    });
-
-    // 6. Save user to repository
-    const savedUser = await this.userRepository.createUser(userEntity);
-
-    // 7. Generate JWT token
-    const token = this.generateAccessToken(
-      savedUser.getId(),
-      savedUser.getEmail(),
-      savedUser.getRole()
-    );
-
-    // 8. Generate email verification token (email sending to be implemented later)
-    const emailVerificationToken =
-      await this.userDomainService.generateEmailVerificationToken(
-        savedUser.getId()
+      // 2. Check if user already exists
+      const existingUser = await this.userRepository.getUserByEmail(
+        request.email
       );
-    // TODO: Implement email sending service
+      if (existingUser) {
+        this.logger?.warn("User registration failed - user already exists", {
+          email: request.email,
+        });
+        throw new Error(USER_CONSTANTS.ERRORS.USER_ALREADY_EXISTS);
+      }
 
-    // 9. Build response
-    const userResponse = UserMapper.toResponseDto(savedUser);
+      // 3. Validate user registration data using domain service
+      await this.userDomainService.validateUserRegistration({
+        email: request.email,
+        password: request.password,
+        firstName: request.firstName,
+        lastName: request.lastName,
+      });
 
-    return {
-      user: {
-        id: userResponse.id,
-        email: userResponse.email,
-        firstName: userResponse.firstName,
-        lastName: userResponse.lastName,
-        fullName: userResponse.fullName,
-        role: userResponse.role,
-        status: userResponse.status,
-        emailVerified: userResponse.emailVerified,
-        phoneNumber: userResponse.phoneNumber,
-        createdAt: userResponse.createdAt,
-      },
-      token,
-      expiresIn: 24 * 60 * 60, // 24 hours
-      emailVerificationRequired: !savedUser.isEmailVerified(),
-      message: USER_CONSTANTS.SUCCESS.USER_CREATED,
-    };
+      // 4. Hash password
+      const passwordHash = await this.userDomainService.hashPassword(
+        request.password
+      );
+
+      // 5. Create user entity
+      const userData = UserMapper.fromCreateRequest(request);
+      const userEntity = UserMapper.createUserEntity({
+        ...userData,
+        passwordHash,
+      });
+
+      // 6. Save user to repository
+      const savedUser = await this.userRepository.createUser(userEntity);
+      this.logger?.info("User created successfully", {
+        userId: savedUser.getId(),
+        email: savedUser.getEmail(),
+      });
+
+      // 7. Generate JWT token
+      const token = this.generateAccessToken(
+        savedUser.getId(),
+        savedUser.getEmail(),
+        savedUser.getRole()
+      );
+
+      // 8. Generate email verification token (email sending to be implemented later)
+      const emailVerificationToken =
+        await this.userDomainService.generateEmailVerificationToken(
+          savedUser.getId()
+        );
+      // TODO: Implement email sending service
+
+      // 9. Build response
+      const userResponse = UserMapper.toResponseDto(savedUser);
+
+      const response = {
+        user: {
+          id: userResponse.id,
+          email: userResponse.email,
+          firstName: userResponse.firstName,
+          lastName: userResponse.lastName,
+          fullName: userResponse.fullName,
+          role: userResponse.role,
+          status: userResponse.status,
+          emailVerified: userResponse.emailVerified,
+          phoneNumber: userResponse.phoneNumber,
+          createdAt: userResponse.createdAt,
+        },
+        token,
+        expiresIn: 24 * 60 * 60, // 24 hours
+        emailVerificationRequired: !savedUser.isEmailVerified(),
+        message: USER_CONSTANTS.SUCCESS.USER_CREATED,
+      };
+
+      this.logger?.logBusinessEvent("user_registered", {
+        userId: savedUser.getId(),
+        email: savedUser.getEmail(),
+        role: savedUser.getRole(),
+      });
+
+      return response;
+    } catch (error) {
+      this.logger?.error("User registration failed", error as Error);
+      throw error;
+    }
   }
 
   private async validateRequest(

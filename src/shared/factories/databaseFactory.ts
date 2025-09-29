@@ -3,6 +3,7 @@ import {
   DatabaseService,
   PostgreSQLDatabaseService,
 } from "../infrastructure/services/databaseService";
+import { LoggerFactory } from "./logger-factory";
 
 // Database factory following Clean Architecture patterns
 export class DatabaseFactory {
@@ -35,21 +36,32 @@ export class DatabaseFactory {
 
   // Test all database connections
   static async testConnections(): Promise<{ [key: string]: boolean }> {
+    const logger = LoggerFactory.getInstance();
     const results: { [key: string]: boolean } = {};
 
     // Test main database
     try {
+      logger.info("Testing main database connection");
       const mainDb = this.getMainDatabase();
       results[`postgresql_${EConnectionTypes.main}`] = await mainDb.ping();
+      logger.info("Main database connection test completed", {
+        success: results[`postgresql_${EConnectionTypes.main}`],
+      });
     } catch (error) {
+      logger.error("Main database connection test failed", error as Error);
       results[`postgresql_${EConnectionTypes.main}`] = false;
     }
 
     // Test logs database
     try {
+      logger.info("Testing logs database connection");
       const logsDb = this.getLogsDatabase();
       results[`postgresql_${EConnectionTypes.logs}`] = await logsDb.ping();
+      logger.info("Logs database connection test completed", {
+        success: results[`postgresql_${EConnectionTypes.logs}`],
+      });
     } catch (error) {
+      logger.error("Logs database connection test failed", error as Error);
       results[`postgresql_${EConnectionTypes.logs}`] = false;
     }
 
@@ -58,15 +70,17 @@ export class DatabaseFactory {
 
   // Close all database connections
   static async closeAllConnections(): Promise<void> {
+    const logger = LoggerFactory.getInstance();
     const promises: Promise<void>[] = [];
 
     for (const [connectionType, dbService] of this.instances) {
-      console.log(`Closing database connection: ${connectionType}`);
+      logger.info(`Closing database connection: ${connectionType}`);
       promises.push(dbService.end());
     }
 
     await Promise.all(promises);
     this.instances.clear();
+    logger.info("All database connections closed");
   }
 
   // Get connection health information

@@ -5,10 +5,12 @@
 
 import { CreateCategoryUseCase } from "./create-category-use-case";
 import { CategoryRepositoryImpl } from "../../../infrastructure/repositories/category-repository-impl";
+import { LoggerFactory } from "../../../../../shared/factories/logger-factory";
 
 export class CreateCategoryFactory {
   static create(): CreateCategoryUseCase {
     const categoryRepository = new CategoryRepositoryImpl();
-    return new CreateCategoryUseCase(categoryRepository);
+    const logger = LoggerFactory.getInstance();
+    return new CreateCategoryUseCase(categoryRepository, logger);
   }
 }

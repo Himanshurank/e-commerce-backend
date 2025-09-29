@@ -7,13 +7,17 @@ import { ProductEntity } from "../../../domain/entities/product-entity";
 import { IProductRepository } from "../../../domain/interfaces/product-domain-interfaces";
 import { GetProductRequestDto } from "./get-product-request-dto";
 import { GetProductResponseDto } from "./get-product-response-dto";
+import { ILoggerService } from "../../../../../shared/interfaces/logger-service-interface";
 
 export interface IGetProductUseCase {
   execute(request: GetProductRequestDto): Promise<GetProductResponseDto>;
 }
 
 export class GetProductUseCase implements IGetProductUseCase {
-  constructor(private readonly productRepository: IProductRepository) {}
+  constructor(
+    private readonly productRepository: IProductRepository,
+    private readonly logger?: ILoggerService
+  ) {}
 
   async execute(request: GetProductRequestDto): Promise<GetProductResponseDto> {
     // Find product by ID or slug

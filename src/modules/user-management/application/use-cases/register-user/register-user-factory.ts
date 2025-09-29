@@ -3,11 +3,13 @@ import { UserRepositoryImpl } from "../../../infrastructure/repositories/user-re
 import { UserValidationService } from "../../../domain/services/user-validation-service";
 import { DatabaseService } from "../../../../../shared/infrastructure/services/databaseService";
 import { DatabaseFactory } from "../../../../../shared/factories/databaseFactory";
+import { LoggerFactory } from "../../../../../shared/factories/logger-factory";
+import { ILoggerService } from "../../../../../shared/interfaces/logger-service-interface";
 
 export class RegisterUserFactory {
   static async create(req: any): Promise<{
     useCase: RegisterUserUseCase;
-    loggerService: any; // Will be replaced with actual logger service
+    loggerService: ILoggerService;
   }> {
     // Create database service
     const databaseService = DatabaseFactory.create();
@@ -18,20 +20,15 @@ export class RegisterUserFactory {
     // Create domain service
     const userDomainService = new UserValidationService();
 
-    // Create use case (email service removed for now)
-    const useCase = new RegisterUserUseCase(userRepository, userDomainService);
+    // Create logger service
+    const loggerService = LoggerFactory.getInstance();
 
-    // Create logger service (placeholder)
-    const loggerService = {
-      errorLog: (data: any) => {
-        console.error("Error:", data);
-        // TODO: Implement actual logging service
-      },
-      infoLog: (data: any) => {
-        console.log("Info:", data);
-        // TODO: Implement actual logging service
-      },
-    };
+    // Create use case with logger
+    const useCase = new RegisterUserUseCase(
+      userRepository,
+      userDomainService,
+      loggerService
+    );
 
     return { useCase, loggerService };
   }

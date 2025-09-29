@@ -7,6 +7,7 @@ import { CategoryEntity } from "../../../domain/entities/category-entity";
 import { ICategoryRepository } from "../../../domain/interfaces/product-domain-interfaces";
 import { CreateCategoryRequestDto } from "./create-category-request-dto";
 import { CreateCategoryResponseDto } from "./create-category-response-dto";
+import { ILoggerService } from "../../../../../shared/interfaces/logger-service-interface";
 
 export interface ICreateCategoryUseCase {
   execute(
@@ -15,7 +16,10 @@ export interface ICreateCategoryUseCase {
 }
 
 export class CreateCategoryUseCase implements ICreateCategoryUseCase {
-  constructor(private readonly categoryRepository: ICategoryRepository) {}
+  constructor(
+    private readonly categoryRepository: ICategoryRepository,
+    private readonly logger?: ILoggerService
+  ) {}
 
   async execute(
     request: CreateCategoryRequestDto

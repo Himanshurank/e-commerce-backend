@@ -14,6 +14,7 @@ import {
 } from "../../../domain/interfaces/product-domain-interfaces";
 import { CreateProductRequestDto } from "./create-product-request-dto";
 import { CreateProductResponseDto } from "./create-product-response-dto";
+import { ILoggerService } from "../../../../../shared/interfaces/logger-service-interface";
 
 export interface ICreateProductUseCase {
   execute(request: CreateProductRequestDto): Promise<CreateProductResponseDto>;
@@ -22,7 +23,8 @@ export interface ICreateProductUseCase {
 export class CreateProductUseCase implements ICreateProductUseCase {
   constructor(
     private readonly productRepository: IProductRepository,
-    private readonly categoryRepository: ICategoryRepository
+    private readonly categoryRepository: ICategoryRepository,
+    private readonly logger?: ILoggerService
   ) {}
 
   async execute(
