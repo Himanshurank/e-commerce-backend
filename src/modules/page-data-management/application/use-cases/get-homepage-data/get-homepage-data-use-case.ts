@@ -9,9 +9,13 @@ import {
   IGetHomepageDataResponseDto,
 } from "./get-homepage-data-response-dto";
 import { IHomepageDataService } from "../../../domain/interfaces/page-data-domain-interfaces";
+import { ILoggerService } from "../../../../../shared/interfaces/logger-service-interface";
 
 export class GetHomepageDataUseCase {
-  constructor(private readonly homepageDataService: IHomepageDataService) {}
+  constructor(
+    private readonly homepageDataService: IHomepageDataService,
+    private readonly logger?: ILoggerService
+  ) {}
 
   /**
    * Execute the use case
@@ -19,10 +23,19 @@ export class GetHomepageDataUseCase {
   public async execute(
     request: GetHomepageDataRequestDto
   ): Promise<GetHomepageDataResponseDto> {
+    this.logger?.info("Starting homepage data retrieval", {
+      categoryLimit: request.categoryLimit,
+      featuredProductLimit: request.featuredProductLimit,
+      includeMetadata: request.includeMetadata,
+    });
+
     try {
       // Validate request
       const validation = request.validate();
       if (!validation.isValid) {
+        this.logger?.warn("Homepage data request validation failed", {
+          errors: validation.errors,
+        });
         throw new Error(`Validation failed: ${validation.errors.join(", ")}`);
       }
 
@@ -30,6 +43,11 @@ export class GetHomepageDataUseCase {
       const homepageData = await this.homepageDataService.buildHomepageData({
         categoryLimit: request.categoryLimit,
         featuredProductLimit: request.featuredProductLimit,
+      });
+
+      this.logger?.info("Homepage data retrieved successfully", {
+        categoriesCount: homepageData.categories.length,
+        featuredProductsCount: homepageData.products.featured.length,
       });
 
       // Prepare response data
@@ -44,7 +62,7 @@ export class GetHomepageDataUseCase {
 
       return new GetHomepageDataResponseDto(responseData);
     } catch (error) {
-      console.error("GetHomepageDataUseCase Error:", error);
+      this.logger?.error("Homepage data retrieval failed", error as Error);
 
       // Return empty but valid response on error
       const errorResponse: IGetHomepageDataResponseDto = {

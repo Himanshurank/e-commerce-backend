@@ -9,6 +9,7 @@ import { CategoryRepositoryImpl } from "../../../../product-management/infrastru
 import { ProductRepositoryImpl } from "../../../../product-management/infrastructure/repositories/product-repository-impl";
 import { CategoryRepositoryAdapter } from "../../../infrastructure/adapters/category-repository-adapter";
 import { ProductRepositoryAdapter } from "../../../infrastructure/adapters/product-repository-adapter";
+import { LoggerFactory } from "../../../../../shared/factories/logger-factory";
 
 export class GetHomepageDataFactory {
   /**
@@ -19,21 +20,27 @@ export class GetHomepageDataFactory {
     const productCategoryRepository = new CategoryRepositoryImpl();
     const productRepository = new ProductRepositoryImpl();
 
-    // Create adapters to match page data interfaces
+    // Create logger service
+    const logger = LoggerFactory.getInstance();
+
+    // Create adapters to match page data interfaces with logger
     const categoryRepositoryAdapter = new CategoryRepositoryAdapter(
-      productCategoryRepository
+      productCategoryRepository,
+      logger
     );
     const productRepositoryAdapter = new ProductRepositoryAdapter(
-      productRepository
+      productRepository,
+      logger
     );
 
-    // Create domain service
+    // Create domain service with logger
     const homepageDataService = new HomepageDataService(
       categoryRepositoryAdapter,
-      productRepositoryAdapter
+      productRepositoryAdapter,
+      logger
     );
 
-    // Create and return use case
-    return new GetHomepageDataUseCase(homepageDataService);
+    // Create and return use case with logger
+    return new GetHomepageDataUseCase(homepageDataService, logger);
   }
 }

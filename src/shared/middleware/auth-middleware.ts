@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
+import { LoggerFactory } from "../factories/logger-factory";
 
 export interface AuthenticatedUser {
   userId: string;
@@ -166,7 +167,10 @@ export const optionalAuth = (
     }
   } catch (error) {
     // Invalid token, but we don't fail - just continue without authentication
-    console.warn("Invalid token in optional auth:", (error as Error).message);
+    const logger = LoggerFactory.getInstance();
+    logger.warn("Invalid token in optional auth", {
+      error: (error as Error).message,
+    });
   }
 
   return next();

@@ -1,4 +1,5 @@
 import { QueryResult, PoolClient, QueryResultRow } from "pg";
+import { LoggerFactory } from "../factories/logger-factory";
 
 // Base repository interface following Clean Architecture patterns
 export interface BaseRepo {
@@ -79,9 +80,10 @@ export abstract class BaseRepository implements BaseRepo {
 
       return await dbService.ping();
     } catch (error) {
-      console.error(
-        `Repository ping failed for ${this.getConnectionType()}:`,
-        error
+      const logger = LoggerFactory.getInstance();
+      logger.error(
+        `Repository ping failed for ${this.getConnectionType()}`,
+        error as Error
       );
       return false;
     }

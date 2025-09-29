@@ -6,6 +6,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import * as Sentry from "@sentry/node";
 import { DatabaseFactory } from "./shared/factories/databaseFactory";
+import { LoggerFactory } from "./shared/factories/logger-factory";
 import { moduleRoutes } from "./modules";
 import { sentryApiLogger } from "./shared/middleware/sentry-logging-middleware";
 import { errorLogger } from "./shared/middleware/error-logger-middleware";
@@ -50,7 +51,8 @@ app.use(errorLogger);
 
 // Our custom error logger middleware
 app.use(function onError(err: Error, req: Request, res: Response, next: any) {
-  console.error("Unhandled error:", err);
+  const logger = LoggerFactory.getInstance();
+  logger.error("Unhandled error in server", err);
   res.statusCode = 500;
   res.end((res as any).sentry + "\n");
 });
@@ -59,14 +61,15 @@ const PORT = process.env["PORT"] || 5000;
 
 // Graceful shutdown handler
 const gracefulShutdown = async () => {
-  console.log("Received shutdown signal, closing server gracefully...");
+  const logger = LoggerFactory.getInstance();
+  logger.info("Received shutdown signal, closing server gracefully...");
 
   try {
     await DatabaseFactory.closeAllConnections();
-    console.log("Database connections closed");
+    logger.info("Database connections closed");
     process.exit(0);
   } catch (error) {
-    console.error("Error during graceful shutdown:", error);
+    logger.error("Error during graceful shutdown", error as Error);
     process.exit(1);
   }
 };
@@ -76,21 +79,22 @@ process.on("SIGTERM", gracefulShutdown);
 process.on("SIGINT", gracefulShutdown);
 
 app.listen(PORT, async () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📊 Environment: ${process.env["NODE_ENV"] || "development"}`);
-  console.log(`🏗️  Architecture: Clean Architecture with TypeScript`);
+  const logger = LoggerFactory.getInstance();
+
+  logger.info(`🚀 Server running on port ${PORT}`);
+  logger.info(`📊 Environment: ${process.env["NODE_ENV"] || "development"}`);
 
   // Test database connections on startup
   try {
-    console.log("🔍 Testing database connections...");
+    logger.info("🔍 Testing database connections...");
     const connectionTests = await DatabaseFactory.testConnections();
 
     for (const [connection, status] of Object.entries(connectionTests)) {
       const emoji = status ? "✅" : "❌";
-      console.log(`${emoji} ${connection}: ${status ? "Connected" : "Failed"}`);
+      logger.info(`${emoji} ${connection}: ${status ? "Connected" : "Failed"}`);
     }
   } catch (error) {
-    console.error("❌ Database connection test failed:", error);
+    logger.error("❌ Database connection test failed", error as Error);
   }
 });
 

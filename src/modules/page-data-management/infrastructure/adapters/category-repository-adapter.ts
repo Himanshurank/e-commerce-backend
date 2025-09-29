@@ -12,10 +12,12 @@ import {
   ICategoryRepository,
   IQueryOptions,
 } from "../../../product-management/domain/interfaces/product-domain-interfaces";
+import { ILoggerService } from "../../../../shared/interfaces/logger-service-interface";
 
 export class CategoryRepositoryAdapter implements IPageDataCategoryRepository {
   constructor(
-    private readonly productCategoryRepository: ICategoryRepository
+    private readonly productCategoryRepository: ICategoryRepository,
+    private readonly logger?: ILoggerService
   ) {}
 
   /**
@@ -86,7 +88,10 @@ export class CategoryRepositoryAdapter implements IPageDataCategoryRepository {
         updatedAt: category.updatedAt,
       }));
     } catch (error) {
-      console.error("CategoryRepositoryAdapter.findAll Error:", error);
+      this.logger?.error(
+        "CategoryRepositoryAdapter.findAll failed",
+        error as Error
+      );
       return [];
     }
   }
@@ -102,7 +107,10 @@ export class CategoryRepositoryAdapter implements IPageDataCategoryRepository {
       const result = await this.productCategoryRepository.findAll({ limit: 1 });
       return result.total;
     } catch (error) {
-      console.error("CategoryRepositoryAdapter.count Error:", error);
+      this.logger?.error(
+        "CategoryRepositoryAdapter.count failed",
+        error as Error
+      );
       return 0;
     }
   }

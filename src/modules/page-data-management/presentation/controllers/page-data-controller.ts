@@ -6,6 +6,7 @@
 import { Request, Response } from "express";
 import { GetHomepageDataFactory } from "../../application/use-cases/get-homepage-data/get-homepage-data-factory";
 import { GetHomepageDataRequestDto } from "../../application/use-cases/get-homepage-data/get-homepage-data-request-dto";
+import { LoggerFactory } from "../../../../shared/factories/logger-factory";
 
 export class PageDataController {
   /**
@@ -13,7 +14,11 @@ export class PageDataController {
    * GET /api/v1/pages/homepage
    */
   public async getHomepageData(req: Request, res: Response): Promise<void> {
+    const logger = LoggerFactory.getInstance();
+
     try {
+      logger.logApiOperation("started", "GET", "/api/v1/pages/homepage");
+
       // Extract query parameters
       const categoryLimit = req.query["category_limit"]
         ? parseInt(req.query["category_limit"] as string)
@@ -22,6 +27,12 @@ export class PageDataController {
         ? parseInt(req.query["featured_product_limit"] as string)
         : undefined;
       const includeMetadata = req.query["include_metadata"] !== "false"; // Default to true
+
+      logger.info("Homepage data request parameters", {
+        categoryLimit,
+        featuredProductLimit,
+        includeMetadata,
+      });
 
       // Create request DTO
       const requestDto = new GetHomepageDataRequestDto({
@@ -34,6 +45,12 @@ export class PageDataController {
       const getHomepageDataUseCase = GetHomepageDataFactory.create();
       const result = await getHomepageDataUseCase.execute(requestDto);
 
+      logger.logBusinessEvent("homepage_data_loaded", {
+        categoriesCount: result.categories.length,
+        productsCount: result.products.featured.length,
+        hasMetadata: !!result.metadata,
+      });
+
       // Return success response
       res.status(200).json({
         success: true,
@@ -45,7 +62,7 @@ export class PageDataController {
         message: result.message,
       });
     } catch (error) {
-      console.error("PageDataController.getHomepageData Error:", error);
+      logger.error("Homepage data retrieval failed", error as Error);
 
       res.status(500).json({
         success: false,

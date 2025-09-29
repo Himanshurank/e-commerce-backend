@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import * as Sentry from "@sentry/node";
+import { LoggerFactory } from "../factories/logger-factory";
 
 interface AuthenticatedUser {
   userId: number;
@@ -20,11 +20,11 @@ export const errorLogger = (
   res: Response,
   next: NextFunction
 ): void => {
-  // Log error to Sentry with full context
-  Sentry.logger.error(`Unhandled Error: ${error.message}`, {
+  const logger = LoggerFactory.getInstance();
+
+  // Log error with full context using our logger service
+  logger.error(`Unhandled Error: ${error.message}`, error, {
     action: "unhandled_error",
-    error: error.message,
-    stack: error.stack,
     method: req.method,
     path: req.path,
     url: req.url,
@@ -35,21 +35,6 @@ export const errorLogger = (
     userRole: req.user?.role,
     userAgent: req.get("User-Agent"),
     ip: req.ip,
-    timestamp: new Date().toISOString(),
-  });
-
-  // Also capture exception for Sentry dashboard
-  Sentry.captureException(error, {
-    tags: {
-      endpoint: req.path,
-      method: req.method,
-      user_id: req.user?.userId?.toString(),
-    },
-    extra: {
-      query: req.query,
-      body: req.body,
-      headers: req.headers,
-    },
   });
 
   // Send error response
@@ -68,11 +53,11 @@ export const errorLogger = (
 export const asyncErrorHandler = (fn: Function) => {
   return (req: Request, res: Response, next: NextFunction) => {
     Promise.resolve(fn(req, res, next)).catch((error: Error) => {
-      // Log async errors
-      Sentry.logger.error(`Async Error in ${req.method} ${req.path}`, {
+      const logger = LoggerFactory.getInstance();
+
+      // Log async errors using our logger service
+      logger.error(`Async Error in ${req.method} ${req.path}`, error, {
         action: "async_error",
-        error: error.message,
-        stack: error.stack,
         method: req.method,
         path: req.path,
         userId: (req as any).user?.userId,
@@ -84,7 +69,7 @@ export const asyncErrorHandler = (fn: Function) => {
 };
 
 /**
- * Simple try-catch wrapper for any function
+ * Simple try-catch wrapper for any function using LoggerService
  */
 export const withErrorLogging = async <T>(
   operation: () => Promise<T>,
@@ -94,14 +79,14 @@ export const withErrorLogging = async <T>(
     [key: string]: any;
   }
 ): Promise<T> => {
+  const logger = LoggerFactory.getInstance();
+
   try {
     return await operation();
   } catch (error) {
-    Sentry.logger.error(`Operation failed: ${context.action}`, {
+    logger.error(`Operation failed: ${context.action}`, error as Error, {
       ...context,
       action: `${context.action}_error`,
-      error: (error as Error).message,
-      stack: (error as Error).stack,
     });
     throw error;
   }

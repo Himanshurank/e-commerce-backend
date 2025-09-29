@@ -13,11 +13,13 @@ import {
 } from "../entities/homepage-data-entity";
 import { ICategoryRepository } from "../../repositories/category-repository-interface";
 import { IProductRepository } from "../../repositories/product-repository-interface";
+import { ILoggerService } from "../../../../shared/interfaces/logger-service-interface";
 
 export class HomepageDataService implements IHomepageDataService {
   constructor(
     private readonly categoryRepository: ICategoryRepository,
-    private readonly productRepository: IProductRepository
+    private readonly productRepository: IProductRepository,
+    private readonly logger?: ILoggerService
   ) {}
 
   /**

@@ -4,6 +4,7 @@ import {
   DatabaseConfig,
   getDatabaseConfig,
 } from "../config/database";
+import { LoggerFactory } from "../../factories/logger-factory";
 
 // Database service interface following Clean Architecture patterns
 export interface DatabaseService {
@@ -21,6 +22,7 @@ export interface DatabaseService {
 export class PostgreSQLDatabaseService implements DatabaseService {
   private pool: Pool;
   private connectionType: EConnectionTypes;
+  private logger = LoggerFactory.getInstance();
 
   constructor(connectionType: EConnectionTypes) {
     this.connectionType = connectionType;
@@ -56,7 +58,7 @@ export class PostgreSQLDatabaseService implements DatabaseService {
 
     // Handle pool errors
     this.pool.on("error", (err) => {
-      console.error(`Database pool error for ${connectionType}:`, err);
+      this.logger.error(`Database pool error for ${connectionType}`, err);
     });
   }
 
@@ -104,7 +106,10 @@ export class PostgreSQLDatabaseService implements DatabaseService {
       await this.pool.query("SELECT 1");
       return true;
     } catch (error) {
-      console.error(`Database ping failed for ${this.connectionType}:`, error);
+      this.logger.error(
+        `Database ping failed for ${this.connectionType}`,
+        error as Error
+      );
       return false;
     }
   }

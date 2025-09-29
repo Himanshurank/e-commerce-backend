@@ -12,9 +12,13 @@ import {
   IProductRepository,
   IQueryOptions,
 } from "../../../product-management/domain/interfaces/product-domain-interfaces";
+import { ILoggerService } from "../../../../shared/interfaces/logger-service-interface";
 
 export class ProductRepositoryAdapter implements IPageDataProductRepository {
-  constructor(private readonly productRepository: IProductRepository) {}
+  constructor(
+    private readonly productRepository: IProductRepository,
+    private readonly logger?: ILoggerService
+  ) {}
 
   /**
    * Find products with optional filters
@@ -55,7 +59,10 @@ export class ProductRepositoryAdapter implements IPageDataProductRepository {
         updatedAt: product.updatedAt,
       }));
     } catch (error) {
-      console.error("ProductRepositoryAdapter.findAll Error:", error);
+      this.logger?.error(
+        "ProductRepositoryAdapter.findAll failed",
+        error as Error
+      );
       return [];
     }
   }
@@ -76,7 +83,10 @@ export class ProductRepositoryAdapter implements IPageDataProductRepository {
       const result = await this.productRepository.findAll({ limit: 1 });
       return result.total;
     } catch (error) {
-      console.error("ProductRepositoryAdapter.count Error:", error);
+      this.logger?.error(
+        "ProductRepositoryAdapter.count failed",
+        error as Error
+      );
       return 0;
     }
   }

@@ -16,11 +16,11 @@ export class LoginUserFactory {
     // Create repository
     const userRepository = new UserRepositoryImpl(databaseService);
 
-    // Create domain service
-    const userDomainService = new UserValidationService();
-
     // Create logger service
     const loggerService = LoggerFactory.getInstance();
+
+    // Create domain service with logger
+    const userDomainService = new UserValidationService(loggerService);
 
     // Create use case with logger
     const useCase = new LoginUserUseCase(
