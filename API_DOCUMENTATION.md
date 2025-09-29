@@ -264,6 +264,177 @@ curl -X POST http://localhost:5000/api/auth/signup \
 - **Phone**: Optional, must be valid phone format if provided
 - **Role**: Must be one of: "customer", "seller", "admin"
 
+### User Signin
+
+Authenticate an existing user and sign them in.
+
+**Endpoint:** `POST /api/auth/signin`
+
+**Headers:**
+
+```json
+{
+  "Content-Type": "application/json"
+}
+```
+
+**Parameters:**
+
+- `email` (string, required) - Valid email address
+- `password` (string, required) - User's password
+
+**Request Body:**
+
+```typescript
+interface SigninRequest {
+  email: string;
+  password: string;
+}
+```
+
+**Response Type:**
+
+```typescript
+interface SigninResponse {
+  statusCode: 200;
+  data: {
+    id: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+    phone: string | null;
+    role: "customer" | "seller" | "admin";
+    status: "pending" | "approved" | "rejected" | "suspended";
+    emailVerified: boolean;
+    createdAt: string; // ISO date string
+    token?: string; // JWT token (future implementation)
+  };
+  message: "User signed in successfully";
+  success: true;
+}
+```
+
+**Example Request:**
+
+```bash
+curl -X POST http://localhost:5000/api/auth/signin \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "john.doe@example.com",
+    "password": "SecurePassword123"
+  }'
+```
+
+**Example Response:**
+
+```json
+{
+  "statusCode": 200,
+  "data": {
+    "id": "778da7f0-f634-445d-aa6d-b83228ad8ea4",
+    "email": "john.doe@example.com",
+    "firstName": "John",
+    "lastName": "Doe",
+    "phone": "+1234567890",
+    "role": "customer",
+    "status": "approved",
+    "emailVerified": false,
+    "createdAt": "2025-09-29T17:39:56.794Z"
+  },
+  "message": "User signed in successfully",
+  "success": true
+}
+```
+
+**Error Responses:**
+
+- `400` - Validation error (invalid email format, missing fields)
+- `401` - Invalid email or password
+- `403` - Account not active (suspended, pending, etc.)
+- `500` - Internal server error
+
+**Validation Rules:**
+
+- **Email**: Must be valid email format
+- **Password**: Required field
+
+### User Logout
+
+Log out an authenticated user and end their session.
+
+**Endpoint:** `POST /api/auth/logout`
+
+**Headers:**
+
+```json
+{
+  "Content-Type": "application/json"
+}
+```
+
+**Parameters:**
+
+- `userId` (string, optional) - User ID (can be extracted from token/session in future)
+
+**Request Body:**
+
+```typescript
+interface LogoutRequest {
+  userId?: string;
+}
+```
+
+**Response Type:**
+
+```typescript
+interface LogoutResponse {
+  statusCode: 200;
+  data: {
+    success: boolean;
+    message: string;
+    loggedOutAt: string; // ISO date string
+  };
+  message: "User logged out successfully";
+  success: true;
+}
+```
+
+**Example Request:**
+
+```bash
+curl -X POST http://localhost:5000/api/auth/logout \
+  -H "Content-Type: application/json" \
+  -d '{
+    "userId": "778da7f0-f634-445d-aa6d-b83228ad8ea4"
+  }'
+```
+
+**Example Response:**
+
+```json
+{
+  "statusCode": 200,
+  "data": {
+    "success": true,
+    "message": "User logged out successfully",
+    "loggedOutAt": "2025-09-29T18:30:00.000Z"
+  },
+  "message": "User logged out successfully",
+  "success": true
+}
+```
+
+**Error Responses:**
+
+- `400` - Validation error (invalid request format)
+- `500` - Internal server error
+
+**Notes:**
+
+- Currently performs basic logout logging
+- Future implementation will include JWT token invalidation
+- No authentication required in current version (will be added with JWT)
+
 ---
 
 ## 🔧 Health Check APIs
@@ -328,169 +499,6 @@ interface DatabaseHealthResponse {
   "connection": "PostgreSQL Database Service - Pool size: 5/10",
   "timestamp": "2025-09-29T16:57:40.689Z"
 }
-```
-
----
-
-## 📝 Frontend Integration Guide
-
-### TypeScript Types
-
-Copy these types to your frontend project:
-
-```typescript
-// API Response Types
-export interface ApiResponse<T> {
-  statusCode: number;
-  data: T;
-  message: string;
-  success: true;
-}
-
-export interface ApiError {
-  statusCode: number;
-  message: string;
-  errors: any[];
-  success: false;
-}
-
-// Homepage Types
-export interface HomepageData {
-  categories: CategoryDto[];
-  featuredProducts: ProductDto[];
-}
-
-// Authentication Types
-export interface SignupRequest {
-  email: string;
-  password: string;
-  firstName: string;
-  lastName: string;
-  phone?: string;
-  role?: "customer" | "seller" | "admin";
-}
-
-export interface SignupResponse {
-  id: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  phone: string | null;
-  role: "customer" | "seller" | "admin";
-  status: "pending" | "approved" | "rejected" | "suspended";
-  emailVerified: boolean;
-  createdAt: string;
-}
-
-export interface CategoryDto {
-  id: string;
-  name: string;
-  slug: string;
-  description: string | null;
-  imageUrl: string | null;
-  level: number;
-  sortOrder: number;
-}
-
-export interface ProductDto {
-  id: string;
-  name: string;
-  slug: string;
-  shortDescription: string | null;
-  price: string;
-  comparePrice: string | null;
-  primaryImage: string | null;
-  averageRating: string;
-  reviewCount: number;
-  hasDiscount: boolean;
-  discountPercentage: number;
-  isAvailable: boolean;
-}
-```
-
-### Example Frontend Usage
-
-#### React/Next.js Example
-
-```typescript
-import { ApiResponse, HomepageData } from "./types/api";
-
-export async function getHomepageData(): Promise<HomepageData> {
-  const response = await fetch("http://localhost:5000/api/homepage", {
-    method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(`HTTP error! status: ${response.status}`);
-  }
-
-  const result: ApiResponse<HomepageData> = await response.json();
-
-  if (!result.success) {
-    throw new Error(result.message);
-  }
-
-  return result.data;
-}
-
-// Usage in component
-const HomePage = () => {
-  const [data, setData] = useState<HomepageData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    getHomepageData()
-      .then(setData)
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
-  }, []);
-
-  if (loading) return <div>Loading...</div>;
-  if (error) return <div>Error: {error}</div>;
-  if (!data) return <div>No data</div>;
-
-  return (
-    <div>
-      <h1>Categories</h1>
-      {data.categories.map((category) => (
-        <div key={category.id}>{category.name}</div>
-      ))}
-
-      <h1>Featured Products</h1>
-      {data.featuredProducts.map((product) => (
-        <div key={product.id}>
-          <h3>{product.name}</h3>
-          <p>{product.shortDescription}</p>
-          <span>${product.price}</span>
-        </div>
-      ))}
-    </div>
-  );
-};
-```
-
-#### Axios Example
-
-```typescript
-import axios from "axios";
-
-const api = axios.create({
-  baseURL: "http://localhost:5000",
-  headers: {
-    "Content-Type": "application/json",
-  },
-});
-
-export const homepageApi = {
-  getHomepageData: async (): Promise<HomepageData> => {
-    const response = await api.get<ApiResponse<HomepageData>>("/api/homepage");
-    return response.data.data;
-  },
-};
 ```
 
 ---
@@ -587,16 +595,20 @@ curl -X METHOD http://localhost:5000/api/path \
 
 - ✅ Homepage API (`GET /api/homepage`)
 - ✅ User Signup API (`POST /api/auth/signup`)
+- ✅ User Signin API (`POST /api/auth/signin`)
+- ✅ User Logout API (`POST /api/auth/logout`)
 - ✅ Health check APIs (`GET /health`, `GET /health/db`)
 - ✅ Standard response format
 - ✅ TypeScript type definitions
 - ✅ Input validation and error handling
 - ✅ Password hashing and security
+- ✅ CORS configuration for frontend integration
 
 ### Future Versions
 
-- 🔄 User Login API
+- 🔄 JWT Token Authentication
 - 🔄 Password Reset APIs
+- 🔄 Email Verification APIs
 - 🔄 Product catalog APIs
 - 🔄 User management APIs
 - 🔄 Order management APIs

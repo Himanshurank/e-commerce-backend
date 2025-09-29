@@ -18,7 +18,43 @@ function createApp(databaseService: IDatabaseService) {
 
   // Security middleware
   app.use(helmet());
-  app.use(cors());
+
+  // CORS configuration
+  app.use(
+    cors({
+      origin: function (origin, callback) {
+        // Allow requests with no origin (mobile apps, Postman, etc.)
+        if (!origin) return callback(null, true);
+
+        // Development origins
+        const allowedOrigins = [
+          "http://localhost:3000",
+          "http://127.0.0.1:3000",
+        ];
+
+        if (allowedOrigins.includes(origin)) {
+          callback(null, true);
+        } else {
+          logger.warn(`CORS blocked origin: ${origin}`);
+          callback(
+            new Error(`Origin ${origin} not allowed by CORS policy`),
+            false
+          );
+        }
+      },
+      credentials: true,
+      methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+      allowedHeaders: [
+        "Origin",
+        "X-Requested-With",
+        "Content-Type",
+        "Accept",
+        "Authorization",
+        "Cache-Control",
+      ],
+      maxAge: 86400, // 24 hours
+    })
+  );
 
   // Logging middleware
   app.use(morgan("combined"));

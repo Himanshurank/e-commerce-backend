@@ -10,13 +10,11 @@ export function createAuthRoutes(
   const router = Router();
   const authController = AuthControllerFactory.create(databaseService, logger);
 
-  /**
-   * @route POST /api/auth/signup
-   * @desc Register a new user
-   * @access Public
-   */
   router.post("/signup", authController.signup.bind(authController));
+
+  router.post("/signin", authController.signin.bind(authController));
+
+  router.post("/logout", authController.logout.bind(authController));
 
   return router;
 }
-
