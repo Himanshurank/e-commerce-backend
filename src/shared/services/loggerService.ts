@@ -23,13 +23,51 @@ export class LoggerService implements ILoggerService {
           }),
         ],
         enableLogs: true,
+        // Set default tags for all Sentry events
+        initialScope: {
+          tags: {
+            environment: process.env.NODE_ENV || "development",
+            service: "e-commerce-backend",
+            version: "1.0.0",
+          },
+        },
+        // Global context that will be added to every event
+        beforeSend: (event) => {
+          // Ensure environment is always present
+          event.environment = process.env.NODE_ENV || "development";
+
+          // Add custom tags to every event
+          event.tags = {
+            ...event.tags,
+            environment: process.env.NODE_ENV || "development",
+            service: "e-commerce-backend",
+            logger: "LoggerService",
+          };
+
+          // Add server info to context
+          event.contexts = {
+            ...event.contexts,
+            server: {
+              environment: process.env.NODE_ENV || "development",
+              uptime: process.uptime(),
+              pid: process.pid,
+              platform: process.platform,
+              node_version: process.version,
+            },
+          };
+
+          return event;
+        },
       });
     }
   }
 
   public info(message: string, ...args: any[]): void {
     const timestamp = new Date().toISOString();
-    console.log(`[INFO] ${timestamp}: ${message}`, ...args);
+    console.log(
+      `[INFO] [${process.env.NODE_ENV}] ${timestamp}: ${message}`,
+      ...args
+    );
 
     // Send to Sentry as breadcrumb
     Sentry.addBreadcrumb({
@@ -41,7 +79,10 @@ export class LoggerService implements ILoggerService {
 
   public error(message: string, error?: Error | any): void {
     const timestamp = new Date().toISOString();
-    console.error(`[ERROR] ${timestamp}: ${message}`, error);
+    console.error(
+      `[ERROR] [${process.env.NODE_ENV}] ${timestamp}: ${message}`,
+      error
+    );
 
     // Send to Sentry
     if (error instanceof Error) {
@@ -73,7 +114,7 @@ export class LoggerService implements ILoggerService {
 
       // Only add debug breadcrumbs in development
       Sentry.addBreadcrumb({
-        message,
+        message: `[${process.env.NODE_ENV}] ${message}`,
         level: "debug",
         ...(args.length > 0 && { data: { context: args } }),
       });
