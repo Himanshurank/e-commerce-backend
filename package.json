@@ -7,7 +7,7 @@
     "doc": "doc"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "npm run clean && tsc",
     "start": "node dist/server.js",
     "dev": "nodemon --exec ts-node src/server.ts",
     "dev:watch": "nodemon --watch src --ext ts --exec ts-node src/server.ts",
@@ -16,7 +16,8 @@
     "lint": "echo 'Add linting later'",
     "test": "echo \"Error: no test specified\" && exit 1",
     "seed": "node scripts/seeders/seed-database.js",
-    "verify-data": "node scripts/verify-data.js"
+    "verify-data": "node scripts/verify-data.js",
+    "postinstall": "npm run build"
   },
   "repository": {
     "type": "git",
@@ -53,5 +54,9 @@
     "morgan": "^1.10.1",
     "pg": "^8.16.3",
     "uuid": "^13.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
   }
 }
