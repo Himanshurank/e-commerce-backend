@@ -1,5 +1,5 @@
-import { ProductStatus } from "../../../enum/productStatus";
-import { ProductVisibility } from "../../../enum/productVisibility";
+import { ProductStatus } from "../enum/productStatus";
+import { ProductVisibility } from "../enum/productVisibility";
 
 export type TProductRecord = {
   id: string;

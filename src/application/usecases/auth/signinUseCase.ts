@@ -1,12 +1,11 @@
-import { ISigninUseCase } from "../../../domain/interfaces/application/usecases/signinUseCase";
-import { IUserRepository } from "../../../domain/interfaces/infrastructure/repositories/userRepository";
+import { IUserRepository } from "../../../infrastructure/repositories/userRepoImpl";
 import { User } from "../../../domain/entities/auth/user";
 import { SigninRequestDto } from "../../Dto/auth/signinRequest";
 import { ILoggerService } from "../../../shared/core/interfaces/loggerService";
 import { UserStatus } from "../../../domain/enum/userStatus";
 import bcrypt from "bcrypt";
 
-export class SigninUseCase implements ISigninUseCase {
+export class SigninUseCase {
   constructor(
     private readonly userRepository: IUserRepository,
     private readonly logger: ILoggerService

@@ -1,4 +1,4 @@
-import { TProductRecord } from "../../types/infrastructure/repositories/productRepository";
+import { TProductRecord } from "../../repositories/productRepository";
 import { ProductStatus } from "../../enum/productStatus";
 import { ProductVisibility } from "../../enum/productVisibility";
 

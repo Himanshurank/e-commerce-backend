@@ -1,4 +1,4 @@
-import { TCategoryRecord } from "../../types/infrastructure/repositories/categoryRepository";
+import { TCategoryRecord } from "../../repositories/categoryRepository";
 
 interface Props {
   id: string;

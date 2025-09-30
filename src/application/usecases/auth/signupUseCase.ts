@@ -1,12 +1,11 @@
-import { ISignupUseCase } from "../../../domain/interfaces/application/usecases/signupUseCase";
-import { IUserRepository } from "../../../domain/interfaces/infrastructure/repositories/userRepository";
+import { IUserRepository } from "../../../infrastructure/repositories/userRepoImpl";
 import { User } from "../../../domain/entities/auth/user";
 import { SignupRequestDto } from "../../Dto/auth/signupRequest";
 import { ILoggerService } from "../../../shared/core/interfaces/loggerService";
 import bcrypt from "bcrypt";
 import { v4 as uuidv4 } from "uuid";
 
-export class SignupUseCase implements ISignupUseCase {
+export class SignupUseCase {
   constructor(
     private readonly userRepository: IUserRepository,
     private readonly logger: ILoggerService
@@ -51,4 +50,3 @@ export class SignupUseCase implements ISignupUseCase {
     }
   }
 }
-

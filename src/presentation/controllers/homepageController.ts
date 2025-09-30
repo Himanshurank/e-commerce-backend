@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
-import { IHomepageController } from "../../domain/interfaces/presentation/controllers/homepageController";
-import { IGetHomepageDataUseCase } from "../../domain/interfaces/application/usecases/getHomepageDataUseCase";
+import { IHomepageController } from "../../domain/interfaces/homepageController.interface";
+import { GetHomepageDataUseCase } from "../../application/usecases/homepage/getHomepageDataUseCase";
 import { GetHomepageDataResponseDto } from "../../application/Dto/homepage/getHomepageDataResponse";
 import { ILoggerService } from "../../shared/core/interfaces/loggerService";
 import { HTTP_STATUS_CODES } from "../../shared/constants/httpStatusCodes";
@@ -9,7 +9,7 @@ import { ApiResponse, ApiError } from "../../shared/utils/apiResponse";
 
 export class HomepageController implements IHomepageController {
   constructor(
-    private readonly getHomepageDataUseCase: IGetHomepageDataUseCase,
+    private readonly getHomepageDataUseCase: GetHomepageDataUseCase,
     private readonly logger: ILoggerService
   ) {}
 

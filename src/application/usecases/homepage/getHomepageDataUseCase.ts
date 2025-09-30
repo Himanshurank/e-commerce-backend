@@ -1,12 +1,15 @@
-import {
-  IGetHomepageDataUseCase,
-  HomepageData,
-} from "../../../domain/interfaces/application/usecases/getHomepageDataUseCase";
-import { ICategoryRepository } from "../../../domain/interfaces/infrastructure/repositories/categoryRepository";
-import { IProductRepository } from "../../../domain/interfaces/infrastructure/repositories/productRepository";
+import { Category } from "../../../domain/entities/catalog/category";
+import { Product } from "../../../domain/entities/catalog/product";
+import { ICategoryRepository } from "../../../infrastructure/repositories/categoryRepoImpl";
+import { IProductRepository } from "../../../infrastructure/repositories/productRepoImpl";
 import { ILoggerService } from "../../../shared/core/interfaces/loggerService";
 
-export class GetHomepageDataUseCase implements IGetHomepageDataUseCase {
+export interface HomepageData {
+  categories: Category[];
+  featuredProducts: Product[];
+}
+
+export class GetHomepageDataUseCase {
   constructor(
     private readonly categoryRepository: ICategoryRepository,
     private readonly productRepository: IProductRepository,

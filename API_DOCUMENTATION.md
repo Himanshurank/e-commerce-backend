@@ -437,6 +437,179 @@ curl -X POST http://localhost:5000/api/auth/logout \
 
 ---
 
+## 🛒 Cart APIs
+
+### Add to Cart
+
+Add a product to the user's shopping cart.
+
+**Endpoint:** `POST /api/cart/add`
+
+**Headers:**
+
+```json
+{
+  "Content-Type": "application/json"
+}
+```
+
+**Parameters:**
+
+- `userId` (string, required) - User ID (will be extracted from JWT token in future)
+- `productId` (string, required) - Product ID to add to cart
+- `quantity` (number, required) - Quantity of the product (must be greater than 0)
+
+**Request Body:**
+
+```typescript
+interface AddToCartRequest {
+  userId: string;
+  productId: string;
+  quantity: number;
+}
+```
+
+**Response Type:**
+
+```typescript
+interface AddToCartResponse {
+  statusCode: 201;
+  data: {
+    success: boolean;
+    message: string;
+    cartItemId: string;
+    productId: string;
+    quantity: number;
+    addedAt: string; // ISO date string
+  };
+  message: "Product added to cart successfully";
+  success: true;
+}
+```
+
+**Example Request:**
+
+```bash
+curl -X POST http://localhost:5000/api/cart/add \
+  -H "Content-Type: application/json" \
+  -d '{
+    "userId": "user-123",
+    "productId": "product-456",
+    "quantity": 2
+  }'
+```
+
+**Example Response:**
+
+```json
+{
+  "statusCode": 201,
+  "data": {
+    "success": true,
+    "message": "Product added to cart successfully",
+    "cartItemId": "cart-item-uuid",
+    "productId": "product-456",
+    "quantity": 2,
+    "addedAt": "2025-09-29T18:30:00.000Z"
+  },
+  "message": "Product added to cart successfully",
+  "success": true
+}
+```
+
+**Error Responses:**
+
+- `400` - Validation error (missing fields, invalid quantity)
+- `500` - Internal server error
+
+**Validation Rules:**
+
+- **User ID**: Required field
+- **Product ID**: Required field
+- **Quantity**: Must be greater than 0 and a whole number
+
+### Get Cart
+
+Retrieve all items in the user's shopping cart.
+
+**Endpoint:** `GET /api/cart/`
+
+**Headers:**
+
+```json
+{
+  "Content-Type": "application/json"
+}
+```
+
+**Parameters:**
+
+- `userId` (string, optional) - User ID as query parameter (will be extracted from JWT token in future)
+
+**Response Type:**
+
+```typescript
+interface GetCartResponse {
+  statusCode: 200;
+  data: {
+    userId: string;
+    items: CartItem[];
+    totalItems: number;
+    totalAmount: number;
+    updatedAt: string; // ISO date string
+  };
+  message: "Cart retrieved successfully";
+  success: true;
+}
+
+interface CartItem {
+  id: string;
+  productId: string;
+  productName: string;
+  quantity: number;
+  price: number;
+  totalPrice: number;
+  addedAt: string; // ISO date string
+}
+```
+
+**Example Request:**
+
+```bash
+curl -X GET "http://localhost:5000/api/cart/?userId=user-123" \
+  -H "Content-Type: application/json"
+```
+
+**Example Response:**
+
+```json
+{
+  "statusCode": 200,
+  "data": {
+    "userId": "user-123",
+    "items": [],
+    "totalItems": 0,
+    "totalAmount": 0,
+    "updatedAt": "2025-09-29T18:30:00.000Z"
+  },
+  "message": "Cart retrieved successfully",
+  "success": true
+}
+```
+
+**Error Responses:**
+
+- `400` - Validation error (missing user ID)
+- `500` - Internal server error
+
+**Notes:**
+
+- Currently returns empty cart (no database integration yet)
+- Future implementation will include actual cart data from database
+- User authentication will be handled via JWT tokens
+
+---
+
 ## 🔧 Health Check APIs
 
 ### Server Health Check
@@ -597,6 +770,8 @@ curl -X METHOD http://localhost:5000/api/path \
 - ✅ User Signup API (`POST /api/auth/signup`)
 - ✅ User Signin API (`POST /api/auth/signin`)
 - ✅ User Logout API (`POST /api/auth/logout`)
+- ✅ Add to Cart API (`POST /api/cart/add`)
+- ✅ Get Cart API (`GET /api/cart/`)
 - ✅ Health check APIs (`GET /health`, `GET /health/db`)
 - ✅ Standard response format
 - ✅ TypeScript type definitions
@@ -612,7 +787,7 @@ curl -X METHOD http://localhost:5000/api/path \
 - 🔄 Product catalog APIs
 - 🔄 User management APIs
 - 🔄 Order management APIs
-- 🔄 Cart APIs
+- 🔄 Cart database integration
 
 ---
 

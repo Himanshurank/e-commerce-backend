@@ -1,5 +1,5 @@
-import { UserRole } from "../../../enum/userRole";
-import { UserStatus } from "../../../enum/userStatus";
+import { UserRole } from "../enum/userRole";
+import { UserStatus } from "../enum/userStatus";
 
 export type TUserRecord = {
   id: string;

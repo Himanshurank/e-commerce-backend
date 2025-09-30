@@ -1,8 +1,8 @@
 import { Request, Response } from "express";
-import { IAuthController } from "../../domain/interfaces/presentation/controllers/authController";
-import { ISignupUseCase } from "../../domain/interfaces/application/usecases/signupUseCase";
-import { ISigninUseCase } from "../../domain/interfaces/application/usecases/signinUseCase";
-import { ILogoutUseCase } from "../../domain/interfaces/application/usecases/logoutUseCase";
+import { IAuthController } from "../../domain/interfaces/authController.interface";
+import { SignupUseCase } from "../../application/usecases/auth/signupUseCase";
+import { SigninUseCase } from "../../application/usecases/auth/signinUseCase";
+import { LogoutUseCase } from "../../application/usecases/auth/logoutUseCase";
 import { SignupRequestDto } from "../../application/Dto/auth/signupRequest";
 import { SignupResponseDto } from "../../application/Dto/auth/signupResponse";
 import { SigninRequestDto } from "../../application/Dto/auth/signinRequest";
@@ -16,9 +16,9 @@ import { ApiResponse, ApiError } from "../../shared/utils/apiResponse";
 
 export class AuthController implements IAuthController {
   constructor(
-    private readonly signupUseCase: ISignupUseCase,
-    private readonly signinUseCase: ISigninUseCase,
-    private readonly logoutUseCase: ILogoutUseCase,
+    private readonly signupUseCase: SignupUseCase,
+    private readonly signinUseCase: SigninUseCase,
+    private readonly logoutUseCase: LogoutUseCase,
     private readonly logger: ILoggerService
   ) {}
 

@@ -1,4 +1,4 @@
-import { TUserRecord } from "../../types/infrastructure/repositories/userRepository";
+import { TUserRecord } from "../../repositories/userRepository";
 import { UserRole } from "../../enum/userRole";
 import { UserStatus } from "../../enum/userStatus";
 

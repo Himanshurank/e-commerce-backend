@@ -1,9 +1,8 @@
-import { ILogoutUseCase } from "../../../domain/interfaces/application/usecases/logoutUseCase";
 import { LogoutRequestDto } from "../../Dto/auth/logoutRequest";
 import { LogoutResponseDto } from "../../Dto/auth/logoutResponse";
 import { ILoggerService } from "../../../shared/core/interfaces/loggerService";
 
-export class LogoutUseCase implements ILogoutUseCase {
+export class LogoutUseCase {
   constructor(private readonly logger: ILoggerService) {}
 
   async execute(params: LogoutRequestDto): Promise<LogoutResponseDto> {
